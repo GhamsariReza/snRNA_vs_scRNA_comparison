@@ -1,0 +1,2359 @@
+---
+title: "10_visualisation_plotting_for_article"
+author: "Reza Ghamsari"
+date: "2025-01-06"
+output: html_document
+---
+```{r setup, include=FALSE}
+all_times <- list()  # store the time for each chunk
+knitr::knit_hooks$set(time_it = local({
+  now <- NULL
+  function(before, options) {
+    if (before) {
+      now <<- Sys.time()
+    } else {
+      res <- difftime(Sys.time(), now)
+      all_times[[options$label]] <<- res
+    }
+  }
+}))
+knitr::opts_chunk$set(
+  message = FALSE,
+  warning = FALSE,
+  time_it = TRUE
+)
+```
+#Directories
+#Colors 
+```{r, colors}
+
+
+my_colors <-c("#9d183299","#00A087FF", "#525ecc99","#E9967A", "#4DBBD5FF",  "#003C67FF", "#386cb0", "#7E6148FF",  "#ADB6B6FF", "#52a7cc99", "#F0E685FF", "#cc52c099",  "#6acc5299", "#802268FF" ,"#ffbb78", "#3C548899", "#189b3699", "#cc9b5299", "#1f0fdf99", "#ccebc5", "#cc527699", "#42857599", "#868686FF", "#006400", "#0A47FFFF" , "#3B1B53FF",  "#749B58FF" ,"#ccc05299", "#cc765299" , "#1B1919FF", "#00D68FFF" ,"#14FFB1FF","#3C5488FF" , "#8F7700FF" , "#164194FF" , "#0094CDFF" , "#FFDAB9", "#FF00FF","#00FFFF","green" , "blue",  "#DC143C","yellow")
+
+
+colGEX <- c("#91D1C299" ,  "#00A08799", "#4DBBD599", "#8491B499"  ,"#F39B7F99" ,"#E64B3599")
+length(my_colors)
+
+color_monosomy <- "#94221F"
+color_non_monosomy <- "#3194CC"
+color_healthy <- "#C0C0C0"
+
+# Define the directory to save the PDF files
+rds_path_vst <- "/vast/projects/aml_multiome/RaCHseq_AML/seurat_outputs/Monosomy_v4/rds_files/"
+fig_path_stnx <- "/home/users/allstaff/ghamsari.r/seurat_figures/Monosomy_v4/"
+```
+
+
+#Loading Packages
+```{r, pkgs}
+script_title <- "10_visualisation_plotting_for_article"
+library(Seurat)
+library(tibble)
+library(Signac)
+library(EnsDb.Hsapiens.v86)
+library(dplyr)
+library(ggplot2)
+library(scuttle)
+library(scDblFinder)
+library(BiocParallel)
+library(SoupX)
+library(celldex)
+library(SingleR)
+library(harmony)
+library(speckle)
+library(tricycle)
+library(dittoSeq)
+library(ggplot2)
+library(scattermore)
+library(scater)
+library(cowplot)
+library(SeuratWrappers)
+library(scran)
+library(org.Hs.eg.db)
+library(AnnotationDbi)
+library(biomaRt)
+library(scCustomize)
+library(parallelly)
+library(parallel)
+library(future)
+library(gridExtra) 
+require(DOSE)
+library(enrichplot)
+library(wordcloud)
+library(clusterProfiler)
+library(DESeq2)
+library(openxlsx)
+library(ggplot2)
+library(dplyr)
+library(ggrepel)
+library(chromVAR)
+library(JASPAR2020)
+library(TFBSTools)
+library(motifmatchr)
+library(BSgenome.Hsapiens.UCSC.hg38)
+library(future.apply)
+library(ggseqlogo)
+library(patchwork)
+library(edgeR)
+library(Matrix)
+library(pheatmap)
+library(openxlsx)
+library(future)
+library(STRINGdb)
+library(igraph)
+library(scales)
+library(STRINGdb)
+library(grid)
+library(GenomicRanges)
+library(msigdbr)
+library(viridis)
+library(tidyr)
+library(ggalluvial)
+
+# check the current active plan
+sink(paste0(fig_path_stnx,script_title ,"_sessionInfo.txt"))
+sessionInfo()
+sink()
+
+
+```
+
+
+
+   /\_/\  
+  ( o.o ) 
+   > ^ <
+   
+
+#reading objects
+
+```{r, fig.width=20}
+# merg_obj<-  readRDS(paste0(rds_path_vst, "10_merged_object_chromvar_sct_normalised_motif_11AML_9healthy_2AMS_final_cell_type_umaps_TFIFDF_corrected_fragments.rds"))
+# merg_obj<-  readRDS(paste0(rds_path_vst, "08_merged_object_chromvar_sct_normalised_motif_11AML_9healthy_2AMS_with_merged_meta_data_after_qc_all_features_merge_annotation_T_B_mono_prog_final_TFIFDF_corrected_fragments.rds"))
+
+merg_obj<-  readRDS(paste0(rds_path_vst, "10_merged_object_chromvar_sct_normalised_motif_11AML_9healthy_2AMS_final_cell_type_umaps_TFIFDF_corrected_fragments_erythro_130875cells.rds"))
+
+Chr7_genes <-  merg_obj@misc$chr7_genes
+Chr7_peaks <-  merg_obj@misc$chr7_peaks
+
+
+DefaultAssay(merg_obj) <- "RNA"
+
+identical(merg_obj@assays$ATAC$counts,merg_obj@assays$ATAC$data) #FALSE
+identical(merg_obj@assays$RNA$counts,merg_obj@assays$RNA$data) #FALSE
+
+merg_obj$cell_type_wsnn_atac_h4_rna_h4_d2_45_1_45_k100_res.0.5_prog_Mono_by_Rachel <- ifelse(
+  merg_obj$cell_type_wsnn_atac_h4_rna_h4_d2_45_1_45_k100_res.0.5_prog_Mono_by_Rachel == "cDC_like ",
+  "cDC_like",
+  merg_obj$cell_type_wsnn_atac_h4_rna_h4_d2_45_1_45_k100_res.0.5_prog_Mono_by_Rachel
+)
+
+```
+#new annotations and grouping based on 17 Feb 2025 meeting:
+adding Erythroid
+```{r}
+#######health_Cytogenetics
+merg_obj$health_Cytogenetics <- 
+  ifelse(merg_obj$donor == "Sample_5", "del7q",
+         ifelse(merg_obj$donor == "Sample_24", "del7q",
+                merg_obj$health_condition))
+
+table(merg_obj$health_Cytogenetics, merg_obj$donor)
+# cell_types_main_3 health_Cytogenetics donor_id
+unique(merg_obj$donor)
+table(merg_obj$health_condition, merg_obj$donor)
+merg_obj$donor_id <- ifelse(merg_obj$donor == "BMMC_S4_D9", "HD1",
+                     ifelse(merg_obj$donor == "BMMC_S4_D1", "HD2",
+                     ifelse(merg_obj$donor == "BMMC_S1_D2", "HD3",
+                     ifelse(merg_obj$donor == "Sample_10", "AM3",
+                     ifelse(merg_obj$donor == "Sample_5", "AN2*",
+                     ifelse(merg_obj$donor == "Sample_13", "AN3+",
+                     ifelse(merg_obj$donor == "Sample_1", "AN1",
+                     ifelse(merg_obj$donor == "BMMC_S4_D8", "HD4",
+                     ifelse(merg_obj$donor == "Sample_7", "AM2",
+                     ifelse(merg_obj$donor == "Sample_20", "AN5",
+                     ifelse(merg_obj$donor == "BMMC_S1_D1", "HD5",
+                     ifelse(merg_obj$donor == "BMMC_S1_D3", "HD6",
+                     ifelse(merg_obj$donor == "Sample_16", "AN4-",
+                     ifelse(merg_obj$donor == "BMMC_S3_D6", "HD7",
+                     ifelse(merg_obj$donor == "Sample_3", "AM1",
+                     ifelse(merg_obj$donor == "Sample_24", "AN6*",
+                     ifelse(merg_obj$donor == "BMMC_S3_D7", "HD8",
+                     ifelse(merg_obj$donor == "Sample_22", "AM5",
+                     ifelse(merg_obj$donor == "BMMC_S2_D1", "HD9",
+                     ifelse(merg_obj$donor == "Sample_18", "AM4",
+                     ifelse(merg_obj$donor == "6905DN", "AN7",
+                     ifelse(merg_obj$donor == "6279DN", "AN8", "Unknown"))))))))))))))))))))))
+table(merg_obj$donor_id, merg_obj$donor)
+table(merg_obj$donor_id, merg_obj$health_Cytogenetics)
+
+```
+# Final cell type annotation: create a new column `cell_type_final`  and refine the annotations based on the `clustering_result_h4_rna_h4_d2_40_1_40_k30_v0_all_cells_regress_cc_138877cells_res.0.9` column.
+
+
+```{r, fig.width=20}
+clustering_result <- readRDS(paste0(rds_path_vst, "04_clustering_result_h4_rna_h4_d2_40_1_40_k30_v0_all_cells_regress_cc_138877cells.rds"))
+
+identical(colnames(merg_obj), rownames(clustering_result)) #FALSE
+clustering_result$barcode <- rownames(clustering_result)
+valid_barcodes <- colnames(merg_obj)
+length(valid_barcodes) #138870
+# Ensure the barcodes are ordered consistently in both datasets
+clustering_result <- clustering_result[match(valid_barcodes, rownames(clustering_result)), ]
+identical(colnames(merg_obj), rownames(clustering_result)) #TRUE
+identical(rownames(merg_obj@meta.data), rownames(clustering_result)) #TRUE
+
+# Compare the raw values (ignoring factors)
+identical(as.character(merg_obj$clustering_result_h4_rna_h4_d2_40_1_40_k30_v0_all_cells_regress_cc_138877cells_res.0.015), 
+          as.character(clustering_result$res.0.015))  # Should return TRUE
+
+
+merg_obj$clustering_result_h4_rna_h4_d2_40_1_40_k30_v0_all_cells_regress_cc_138877cells_res.0.035 <- clustering_result$res.0.035
+merg_obj$clustering_result_h4_rna_h4_d2_40_1_40_k30_v0_all_cells_regress_cc_138877cells_res.0.9 <- clustering_result$res.0.9
+merg_obj$clustering_result_h4_rna_h4_d2_40_1_40_k30_v0_all_cells_regress_cc_138877cells_res.1.3 <- clustering_result$res.1.3
+
+merg_obj@meta.data$cell_type_final <- ifelse(
+        merg_obj@meta.data$clustering_result_h4_rna_h4_d2_40_1_40_k30_v0_all_cells_regress_cc_138877cells_res.0.9 == "13", "Transitional_B",
+        ifelse(
+        merg_obj@meta.data$clustering_result_h4_rna_h4_d2_40_1_40_k30_v0_all_cells_regress_cc_138877cells_res.0.9 == "26", "Transitional_B",
+         ifelse(
+          merg_obj@meta.data$clustering_result_h4_rna_h4_d2_40_1_40_k30_v0_all_cells_regress_cc_138877cells_res.0.9 == "28", "Transitional_B",
+        ifelse(
+        merg_obj@meta.data$clustering_result_h4_rna_h4_d2_40_1_40_k30_v0_all_cells_regress_cc_138877cells_res.0.9 == "19", "Transitional_B",
+         ifelse(
+        merg_obj@meta.data$clustering_result_h4_rna_h4_d2_40_1_40_k30_v0_all_cells_regress_cc_138877cells_res.0.9 == "33", "Transitional_B1B",
+        ifelse(
+    merg_obj@meta.data$clustering_result_h4_rna_h4_d2_40_1_40_k30_v0_all_cells_regress_cc_138877cells_res.0.9 == "41", "Transitional_B1B",
+    ifelse(
+    merg_obj@meta.data$clustering_result_h4_rna_h4_d2_40_1_40_k30_v0_all_cells_regress_cc_138877cells_res.0.9 == "35", "Transitional_B1B",
+            ifelse(
+    merg_obj@meta.data$clustering_result_h4_rna_h4_d2_40_1_40_k30_v0_all_cells_regress_cc_138877cells_res.0.9 == "8", "Transitional_B1B",
+    ifelse(
+        merg_obj@meta.data$clustering_result_h4_rna_h4_d2_40_1_40_k30_v0_all_cells_regress_cc_138877cells_res.0.9 == "40", "CD4+ T-naive",
+            ifelse(
+        merg_obj@meta.data$clustering_result_h4_rna_h4_d2_40_1_40_k30_v0_all_cells_regress_cc_138877cells_res.0.9 == "5", "CD4+ T-naive",
+            ifelse(
+        merg_obj@meta.data$clustering_result_h4_rna_h4_d2_40_1_40_k30_v0_all_cells_regress_cc_138877cells_res.0.9 == "18", "CD4+ T",
+            ifelse(
+        merg_obj@meta.data$clustering_result_h4_rna_h4_d2_40_1_40_k30_v0_all_cells_regress_cc_138877cells_res.0.9 == "2", "CD4+ T",
+         ifelse(
+        merg_obj@meta.data$clustering_result_h4_rna_h4_d2_40_1_40_k30_v0_all_cells_regress_cc_138877cells_res.0.9 == "9", "CD8+ T",
+        ifelse(
+        merg_obj@meta.data$clustering_result_h4_rna_h4_d2_40_1_40_k30_v0_all_cells_regress_cc_138877cells_res.0.9 == "3", "CD8+ T",
+        ifelse(
+        merg_obj@meta.data$clustering_result_h4_rna_h4_d2_40_1_40_k30_v0_all_cells_regress_cc_138877cells_res.0.9 == "10", "NK",
+        ifelse(
+        merg_obj@meta.data$clustering_result_h4_rna_h4_d2_40_1_40_k30_v0_all_cells_regress_cc_138877cells_res.1.3 == "10", "LOW_QC",
+        ifelse(
+        merg_obj@meta.data$clustering_result_h4_rna_h4_d2_40_1_40_k30_v0_all_cells_regress_cc_138877cells_res.1.3 == "14", "LOW_QC",
+        ifelse(
+        merg_obj@meta.data$clustering_result_h4_rna_h4_d2_40_1_40_k30_v0_all_cells_regress_cc_138877cells_res.0.9 == "22", "NK",
+ifelse(
+        merg_obj@meta.data$clustering_wsnn_prog_mono_intgd_atac_h4_rna_h4_d2_45_1_45_k100_res.0.5 == "3", "Erythroid",
+        ifelse(
+        merg_obj@meta.data$clustering_wsnn_prog_mono_intgd_atac_h4_rna_h4_d2_45_1_45_k100_res.0.5 == "17", "Erythroid",
+        ifelse(
+        merg_obj@meta.data$clustering_wsnn_prog_mono_intgd_atac_h4_rna_h4_d2_45_1_45_k100_res.0.5 == "18", "MEP_like",
+        
+        merg_obj@meta.data$cell_type_wsnn_atac_h4_rna_h4_d2_45_1_45_k100_res.0.5_prog_Mono_by_Rachel
+            )))))))))))))))))))))
+unique(merg_obj@meta.data$cell_type_final) 
+#  [1] "CLP"                 "CD14_Mono_Mono_like" "NK"                  "LMPP"                "Progenitor_like"     "GMP_like"            "CD4+ T"              "CMP_like"           
+#  [9] "CD4+ T-naive"        "CD8+ T"              "cDC_like"            "Pro_mono_like"       "Erythroid"           "Transitional_B1B"    "Transitional_B"      "HSC_like"           
+# [17] "LOW_QC"              "CD16_Mono_Mono_like" "pDC_like"            "MEP_like"            "T_cells"             "B_cells"   
+
+#@@@@@@@@@@@@@@@@@@@@@@@@@@
+##@@@@@@@@@@@@@@A sanity check 
+#@@@@@@@@@@@@@@@@@@@@@@@@@@
+# lowqc_obj <- subset(
+#   x = merg_obj, 
+#     cell_type_final == "LOW_QC"  
+# )
+# # Assuming lowqc_obj is already loaded with the necessary columns
+# df <- data.frame("nCount_ATAC_raw" = lowqc_obj$nCount_ATAC_raw, 
+#                  "nCount_RNA_raw" = lowqc_obj$nCount_RNA_raw,
+#                  "nFeature_ATAC_raw" = lowqc_obj$nFeature_ATAC_raw,
+#                  "nFeature_RNA_raw" = lowqc_obj$nFeature_RNA_raw)
+# 
+# # Create the scatter plot
+# plot(df$nCount_ATAC_raw, df$nCount_RNA_raw, 
+#      main = "Scatter Plot of nCount_ATAC_raw vs nCount_RNA_raw", 
+#      xlab = "nCount_ATAC_raw", 
+#      ylab = "nCount_RNA_raw", 
+#      pch = 19, 
+#      col = rgb(0, 0, 1, 0.5))  # semi-transparent blue points
+# grid()
+# lowqc_obj <- NULL
+#@@@@@@@@@@@@@@@@@@@@@@@@@@
+#@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+#some B_cells and T_cells still left behind and need reannotations
+merg_obj@meta.data$cell_type_final <- ifelse(
+        merg_obj@meta.data$cell_type_final == "B_cells", "Pro_mono_like",
+        ifelse(merg_obj@meta.data$cell_type_final == "T_cells", "LOW_QC", merg_obj@meta.data$cell_type_final))
+
+#Rachel final annotations
+merg_obj$cell_type_final<- 
+  ifelse(merg_obj$cell_type_final == "HSC_like", "HSC",
+  ifelse(merg_obj$cell_type_final == "Progenitor_like", "Progenitor(MPP)",
+         ifelse(merg_obj$cell_type_final == "MEP_like", "MEP",
+                  ifelse(merg_obj$cell_type_final == "CMP_like", "CMP",
+                         ifelse(merg_obj$cell_type_final == "GMP_like", "GMP",
+                                  ifelse(merg_obj$cell_type_final == "Pro_mono_like", "Pro-mono",
+                                         ifelse(merg_obj$cell_type_final == "CD14_Mono_Mono_like", "CD14 Mono",
+             ifelse(merg_obj$cell_type_final == "CD16_Mono_Mono_like", "CD16 Mono", 
+                     ifelse(merg_obj$cell_type_final == "pDC_like", "pDC",
+                              ifelse(merg_obj$cell_type_final == "cDC_like", "cDC",
+  ifelse(merg_obj$cell_type_final == "CD8+ T", "CD8 T", 
+         ifelse(merg_obj$cell_type_final == "CD4+ T", "CD4 T", 
+  ifelse(merg_obj$cell_type_final == "CD4+ T-naive", "CD4 T naive",
+           ifelse(merg_obj$cell_type_final == "Transitional_B", "B", 
+  ifelse(merg_obj$cell_type_final == "Transitional_B1B", "B1",
+         merg_obj$cell_type_final)))))))))))))))
+
+#Rachel final annotations
+merg_obj$cell_types_main_3<- 
+  ifelse(merg_obj$cell_type_final == "B", "B_cells", 
+  ifelse(merg_obj$cell_type_final == "B1", "B_cells",
+  ifelse(merg_obj$cell_type_final == "CD4 T", "T_cells",
+  ifelse(merg_obj$cell_type_final == "CD4 T naive", "T_cells",
+  ifelse(merg_obj$cell_type_final == "CD8 T", "T_cells",
+         "MPP")))))
+
+```
+#dotplot (clusters_wnn_raw)
+```{r,}
+
+Marker_path <- "/stornext/General/data/user_managed/grpu_mritchie_1/reza/projects/mat_seq/RaCHseq_AML/seurat_outputs/monosomy7_v3/"
+all_features <- readRDS(paste0(Marker_path, "07_Markers_for_all_cell_types.rds"))
+
+Idents(merg_obj) <- merg_obj$cell_type_final
+# Start a new PDF file for all samples
+pdf(file = paste0(fig_path_stnx, "10_DOTplot_final_cell_types_scaled_all_Markers.pdf"), width = 40, height = 30,  pointsize = 7)
+
+# Initialize an empty list to store individual DotPlots for all Seurat objects
+plot_list <- list()
+counter <- 1
+
+    # Iterate over each feature set, create a DotPlot, and add it to the list
+    for (f_name in names(all_features)) {
+      print(f_name)
+      # f_name <- "ILC"
+        if (counter <= 4) {
+            f <- all_features[[f_name]]
+            plot <- DotPlot(merg_obj, assay= "RNA", features = f, dot.scale = 10, group.by = "cell_type_final", scale = TRUE, cols= c("#DEEBF7", "#08519C"), cluster.idents= FALSE) +
+             RotatedAxis() +
+            ggtitle(f_name) +  # Add title with both object and marker set names
+            labs(x = paste0(f_name, " markers"), y = "cell_type_final")
+            plot_list[[counter]] <- plot
+            counter <- counter + 1
+        }
+        # When 8 plots are ready, combine and print them, then reset the counter and plot_list
+        if (length(plot_list) == 4) {
+            combined_plot <- wrap_plots(plotlist = plot_list, ncol = 2)  # Set ncol to 2 for a 2x4 grid
+            print(combined_plot)
+            plot_list <- list()  # Reset the plot_list
+            counter <- 1  # Reset the counter
+        }
+    }
+
+
+# If there are remaining plots after the loop ends, print them as well
+if (length(plot_list) > 0) {
+    combined_plot <- wrap_plots(plotlist = plot_list, ncol = 2)  # Set ncol to 2 for a 2x4 grid
+    print(combined_plot)
+}
+
+# Close the PDF
+dev.off()
+
+```
+
+#setting colours for different features
+
+```{r}
+my_colors <-c("#9d183299","#00A087FF", "#525ecc99","#E9967A", "#4DBBD5FF",  "#003C67FF", "#386cb0", "#7E6148FF",  "#ADB6B6FF", "#52a7cc99", "#F0E685FF", "#cc52c099",  "#6acc5299","#DC143C","#802268FF" ,"#ffbb78", "#3C548899", "#189b3699", "#cc9b5299", "#1f0fdf99", "#ccebc5", "#cc527699", "#42857599", "#868686FF", "#006400", "#0A47FFFF" , "#3B1B53FF",  "#749B58FF" ,"#ccc05299", "#cc765299" , "#1B1919FF", "#00D68FFF" ,"#14FFB1FF","#3C5488FF" , "#8F7700FF" , "#164194FF" , "#0094CDFF" , "#FFDAB9", "#FF00FF","#00FFFF","green" , "blue",  "#480607","yellow")
+
+              
+cell_type_colors <- c("HSC" = "#4292C6",
+                      "Progenitor(MPP)" = "#BB0021FF",
+                      "LMPP" = "#cc52c099",
+                      "MEP" = "#08519C",
+                      "CMP" = "#4DBBD5FF",
+                      "GMP" = "#F0E685FF", 
+                      "Pro-mono" = "#ffbb78",
+                        "CD14 Mono" = "#F05C3BFF",
+                        "CD16 Mono" = "#E9967A",
+                        "cDC" = "#A20056FF",
+                      "pDC" = "#802268FF",
+                         "Erythroid" = "#08306B",
+                      "CLP" = "#4A0F5FFF",
+                         "NK" = "#42857599",
+                      "CD4 T naive" = "#00A087FF",
+                      "CD4 T" = "#ccebc5",
+                      "CD8 T" = "#91D1C2FF",
+                      "B" = "#58593FFF",
+                      "B1" = "#ADB6B6FF",
+                      "LOW_QC" = "black")
+
+setdiff(names(cell_type_colors), unique(merg_obj@meta.data$cell_type_final)) #0
+custom_order <- names(cell_type_colors)
+merg_obj@meta.data$cell_type_final <- factor(merg_obj@meta.data$cell_type_final, levels = custom_order)
+# Assign colors in the correct order based on `cell_type_final`
+merg_obj@meta.data$colors_cell_type <- cell_type_colors[as.character(merg_obj@meta.data$cell_type_final)]
+# Convert colors_cell_type to a factor with levels in custom_order
+merg_obj@meta.data$colors_cell_type <- factor(merg_obj@meta.data$colors_cell_type, 
+                                              levels = cell_type_colors[custom_order])
+
+
+
+
+#########Create the donor-health color mapping
+
+
+donor_health_mapping <- merg_obj@meta.data %>%
+  distinct(donor_id, health_condition) %>%
+  arrange(donor_id)  # Ensure consistent donor order for health condition mapping
+
+# Define the colors for each health condition
+health_colors <- c(
+  "AML_monosomy" = "#94221F",  # Red
+  "AML_non_monosomy" = "#3194CC",  # Blue
+  "healthy_donors" = "#C0C0C0"  # Gray
+)
+# Assign colors to health conditions based on the 'Health_Condition' column
+merg_obj@meta.data$color_health <- health_colors[merg_obj@meta.data$health_condition]
+
+# Step 2: Define the levels for the health_color column (optional, for plot order)
+merg_obj@meta.data$color_health <- factor(merg_obj@meta.data$color_health,
+                                                 levels = unique(merg_obj@meta.data$color_health))
+
+
+
+# Create color gradients based on health condition
+color_monosomy <- c("#94221F", "#ECD8D8")  # Red gradient
+color_non_monosomy <- c("#386cb0", "#C9E3F1")  # Blue gradient
+color_healthy <- c("#555555", "#EEEEEE")  # Gray gradient
+
+# Generate gradient palettes for each health condition
+color_monosomy_palette <- colorRampPalette(color_monosomy)(sum(donor_health_mapping$health_condition == "AML_monosomy"))
+color_non_monosomy_palette <- colorRampPalette(color_non_monosomy)(sum(donor_health_mapping$health_condition == "AML_non_monosomy"))
+color_healthy_palette <- colorRampPalette(color_healthy)(sum(donor_health_mapping$health_condition == "healthy_donors"))
+
+# Assign colors to donors based on health condition
+donor_colors <- donor_health_mapping %>%
+  group_by(health_condition) %>%
+  mutate(
+    Donor_Color = case_when(
+      health_condition == "AML_monosomy" ~ color_monosomy_palette[row_number()],
+      health_condition == "AML_non_monosomy" ~ color_non_monosomy_palette[row_number()],
+      health_condition == "healthy_donors" ~ color_healthy_palette[row_number()],
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  ungroup() %>%
+  select(donor_id, Donor_Color) %>%
+  deframe()
+
+# Step 2: Add the color mapping to your AML_progenitors object
+merg_obj@meta.data$color_donor <- donor_colors[merg_obj@meta.data$donor_id]
+
+# Step 3: Define the levels for the donor_color column (optional)
+merg_obj@meta.data$color_donor <- factor(merg_obj@meta.data$color_donor,
+                                                levels = unique(merg_obj@meta.data$color_donor))
+
+
+```
+#adding ATAC and RNA umaps
+
+```{r, fig.width=13, fig.height=10}}
+merg_obj <- RunUMAP(merg_obj,dims = 1:40, reduction = 'harmony_RNA_seurat4',  reduction.name = "umap.harmony_RNA_1_40")
+merg_obj <- RunUMAP(merg_obj,dims = 2:40, reduction = 'harmony_ATAC_seurat4',  reduction.name = "umap.harmony_ATAC_2_40")
+saveRDS(merg_obj@reductions, paste0(rds_path_vst, "10_reductions_all_cells.rds"))
+# Convert UMAP embeddings to a data frame
+reductions <-  readRDS(paste0(rds_path_vst, "10_reductions_all_cells.rds"))
+merg_obj@reductions$umap.harmony_ATAC_2_40 <- reductions$umap.harmony_ATAC_2_40
+merg_obj@reductions$umap.harmony_RNA_1_40 <- reductions$umap.harmony_RNA_1_40
+
+```
+
+
+#Subsetting progenitors umap
+for progenitor cells Rachel is interested in umap.Prog_atac_h4_rna_h4_d2_45_1_45_k100_wnn which here I load the embedding and then will subset the all cell object based on the barcodes in this subset
+```{r}
+reductions <-  readRDS(paste0(rds_path_vst, "04_reductions_atac_h4_rna_h4_d2_45_1_45_k100_v0_all_cells_regress_cc_prog.rds"))
+prog_barcodes <- rownames(reductions$umap.Prog_atac_h4_rna_h4_d2_45_1_45_k100_wnn)
+length(prog_barcodes) #77079
+
+Idents(merg_obj) <- colnames(merg_obj)
+#subsetting
+merg_obj_prog <- subset(
+  x = merg_obj,
+  idents = prog_barcodes)
+
+identical(rownames(reductions$umap.Prog_atac_h4_rna_h4_d2_45_1_45_k100_wnn), colnames(merg_obj_prog)) #TRUE
+
+merg_obj_prog@reductions <- reductions
+
+table(merg_obj_prog@meta.data$cell_type_final)
+
+merg_obj_prog <- subset(
+  x = merg_obj_prog, 
+    cell_type_final != "CD4 T"  &
+     cell_type_final != "B" 
+)
+
+```
+
+#removing LOW_QC clusters
+after further investigation LOW_QC which primarily annotated as T-cell, because of having low quality cells, has removed from the data
+```{r}
+unique(merg_obj$cell_type_final)
+merg_obj <- subset(
+  x = merg_obj, 
+    cell_type_final != "LOW_QC"  
+)
+merg_obj_prog <- subset(
+  x = merg_obj_prog,
+    cell_type_final != "LOW_QC"
+)
+
+saveRDS(merg_obj, paste0(rds_path_vst, "10_merged_object_chromvar_sct_normalised_motif_11AML_9healthy_2AMS_final_cell_type_umaps_TFIFDF_corrected_fragments_erythro_130875cells.rds"))
+
+```
+#uMAPs
+##UMPs RNA ATAC
+```{r}
+dim(merg_obj) #36601 130875
+#########################
+#########################
+######################### RNA umap
+#########################
+#########################
+umap_df <- as.data.frame(merg_obj@reductions$umap.harmony_RNA_1_40@cell.embeddings)
+colnames(umap_df) <- c("UMAP1", "UMAP2")
+
+# Add cell type and health condition information
+umap_df$cell_type <- as.factor(merg_obj@meta.data[["cell_type_final"]])
+umap_df$health_condition <- as.factor(merg_obj@meta.data[["health_condition"]])
+umap_df$colors_cell_type <- merg_obj@meta.data[["colors_cell_type"]]
+# Convert `cell_type` to a factor with the specified order
+# Define the color palette manually
+color_mapping <- setNames(cell_type_colors[custom_order], custom_order)
+unique(umap_df$cell_type)
+# Create scatter plot
+scatter_plot <- ggplot(umap_df, aes(x = UMAP1, y = UMAP2, color = cell_type)) +
+  geom_point(alpha = 0.6, size = 0.9) + 
+ scale_color_manual(values = color_mapping, guide = guide_legend(override.aes = list(size = 9, alpha = 1))) +  # 
+  labs(title = "All Cell types (130,875 cells)",
+       x = "UMAP Dimension 1",
+       y = "UMAP Dimension 2",
+       color = "Cell Type") +
+  theme_minimal() +  
+  theme(panel.grid = element_blank(),  
+        axis.ticks = element_blank(), 
+        axis.text = element_blank(), 
+        plot.title = element_text(hjust = 0.5)) 
+# Print the scatter plot
+print(scatter_plot)
+# # Specify the PDF file name
+
+gg_file <- paste0(fig_path_stnx, "10_umap_RNA_main_cell_types_11AML_9healthy_2AMS_umap_harmony_RNA_seurat4_1_40.pdf")
+# #
+# # Save the combined plot as a single PDF
+ggsave(gg_file, plot = scatter_plot, width = 14, height = 12)
+
+#########################
+#########################
+######################### ATAC umap
+#########################
+#########################
+umap_df <- as.data.frame(merg_obj@reductions$umap.harmony_ATAC_2_40@cell.embeddings)
+
+colnames(umap_df) <- c("UMAP1", "UMAP2")
+
+# Add cell type and health condition information
+umap_df$cell_type <- as.factor(merg_obj@meta.data[["cell_type_final"]])
+umap_df$health_condition <- as.factor(merg_obj@meta.data[["health_condition"]])
+umap_df$colors_cell_type <- merg_obj@meta.data[["colors_cell_type"]]
+# Convert `cell_type` to a factor with the specified order
+# Define the color palette manually
+color_mapping <- setNames(cell_type_colors[custom_order], custom_order)
+unique(umap_df$cell_type)
+# Create scatter plot
+scatter_plot <- ggplot(umap_df, aes(x = UMAP1, y = UMAP2, color = cell_type)) +
+  geom_point(alpha = 0.6, size = 0.9) +  # Adjust transparency and size for better visualization
+ scale_color_manual(values = color_mapping, guide = guide_legend(override.aes = list(size = 9, alpha = 1))) +   
+  labs(title = "All Cell types (138,870 cells)",
+       x = "UMAP Dimension 1",
+       y = "UMAP Dimension 2",
+       color = "Cell Type") +
+  theme_minimal() +  
+  theme(panel.grid = element_blank(),  
+        axis.ticks = element_blank(), 
+        axis.text = element_blank(), 
+        plot.title = element_text(hjust = 0.5)) 
+
+# # Specify the PDF file name
+gg_file <- paste0(fig_path_stnx, "10_umap_ATAC_main_cell_types_11AML_9healthy_2AMS_umap_harmony_ATAC_seurat4_2_40.pdf")
+# # Save the combined plot as a single PDF
+ggsave(gg_file, plot = scatter_plot, width = 14, height = 12)
+
+
+```
+##UMAP_plots all cells 
+```{r, fig.width=13, fig.height=10}
+# Convert UMAP embeddings to a data frame
+umap_df <- as.data.frame(merg_obj@reductions$umap.intgd_atac_h4_rna_h4_d2_40_1_40_k30_wnn@cell.embeddings)
+colnames(umap_df) <- c("UMAP1", "UMAP2")
+merg_obj$color_donor
+# Add cell type and health condition information
+umap_df$cell_type <- as.factor(merg_obj@meta.data[["donor_id"]])
+umap_df$health_condition <- as.factor(merg_obj@meta.data[["health_condition"]])
+umap_df$health_condition <- as.factor(merg_obj@meta.data[["health_Cytogenetics"]])
+umap_df$colors_cell_type <-  as.factor(merg_obj@meta.data[["color_donor"]])
+umap_df$clusters <- merg_obj@meta.data[["clustering_result_h4_rna_h4_d2_40_1_40_k30_v0_all_cells_regress_cc_138877cells_res.0.015"]]
+# Convert `cell_type` to a factor with the specified order
+# umap_df$cell_type <- factor(umap_df$cell_type, levels = custom_order)
+head(umap_df$colors_cell_type )
+head(umap_df$cell_type )
+cell_types <- unique(umap_df$cell_type)
+
+
+# Define the color palette manually (ensure colors match the unique cell types)
+color_mapping <- donor_colors
+
+
+
+unique(umap_df$colors_cell_type)
+# Create scatter plot
+scatter_plot <- ggplot(umap_df, aes(x = UMAP1, y = UMAP2, color = cell_type)) +
+  geom_point(alpha = 0.3, size = 0.6) +  # Adjust transparency and size for better visualization
+ scale_color_manual(values = color_mapping, guide = guide_legend(override.aes = list(size = 9, alpha = 1))) +  # Apply the color mapping
+  # scale_color_manual(values = my_colors, guide = guide_legend(override.aes = list(size = 4))) +  # Apply the color mapping
+  labs(title = "All Cell types (130,875 cells)",
+       x = "UMAP Dimension 1",
+       y = "UMAP Dimension 2",
+       color = "Cell Type") +
+  theme_minimal() +  
+  theme(panel.grid = element_blank(),  # Remove background grid
+        axis.ticks = element_blank(), 
+        axis.text = element_blank(), 
+        plot.title = element_text(hjust = 0.5)) 
+
+
+
+# # Specify the PDF file name
+pdf_file <- paste0(fig_path_stnx, "10_umap_wnn_all_donors_11AML_9healthy_2AMS_umap_harmony_RNA_seurat4_1_40_v2.pdf")
+# # Save the combined plot as a single PDF
+ggsave(pdf_file, plot = scatter_plot, width = 14, height = 12)
+
+
+```
+
+##UMAP_plots all cells
+```{r, fig.width=13, fig.height=10}
+
+# Convert UMAP embeddings to a data frame
+umap_df <- as.data.frame(merg_obj@reductions$umap.intgd_atac_h4_rna_h4_d2_40_1_40_k30_wnn@cell.embeddings)
+colnames(umap_df) <- c("UMAP1", "UMAP2")
+
+# Add cell type and health condition information
+umap_df$cell_type <- as.factor(merg_obj@meta.data[["cell_type_final"]])
+umap_df$health_condition <- as.factor(merg_obj@meta.data[["health_condition"]])
+umap_df$health_condition <- as.factor(merg_obj@meta.data[["health_Cytogenetics"]])
+umap_df$colors_cell_type <- merg_obj@meta.data[["colors_cell_type"]]
+umap_df$clusters <- merg_obj@meta.data[["clustering_result_h4_rna_h4_d2_40_1_40_k30_v0_all_cells_regress_cc_138877cells_res.0.015"]]
+# Convert `cell_type` to a factor with the specified order
+# umap_df$cell_type <- factor(umap_df$cell_type, levels = custom_order)
+head(umap_df$colors_cell_type )
+head(umap_df$cell_type )
+cell_types <- unique(umap_df$cell_type)
+
+umap_df$colors_cell_type <- as.character(umap_df$colors_cell_type)
+
+# Define the color palette manually (ensure colors match the unique cell types)
+color_mapping <- setNames(cell_type_colors[custom_order], custom_order)
+unique(umap_df$colors_cell_type)
+# Create scatter plot
+scatter_plot <- ggplot(umap_df, aes(x = UMAP1, y = UMAP2, color = cell_type)) +
+  geom_point(alpha = 0.6, size = 0.9) +  # Adjust transparency and size for better visualization
+ scale_color_manual(values = color_mapping, guide = guide_legend(override.aes = list(size = 9, alpha = 1))) +  # Apply the color mapping
+  # scale_color_manual(values = my_colors, guide = guide_legend(override.aes = list(size = 4))) +  # Apply the color mapping
+  labs(title = "All Cell types (130,875 cells)",
+       x = "UMAP Dimension 1",
+       y = "UMAP Dimension 2",
+       color = "Cell Type") +
+  theme_minimal() +  
+  theme(panel.grid = element_blank(),  # Remove background grid
+        axis.ticks = element_blank(), 
+        axis.text = element_blank(), 
+        plot.title = element_text(hjust = 0.5)) 
+
+# # Specify the PDF file name
+pdf_file <- paste0(fig_path_stnx, "10_umap_wnn_all_cell_types_11AML_9healthy_2AMS_umap_harmony_RNA_seurat4_1_40_v2.pdf")
+# # Save the combined plot as a single PDF
+ggsave(pdf_file, plot = scatter_plot, width = 14, height = 12)
+
+
+```
+##Feature_plots  by Chr7 status
+```{r, fig.width=10}
+# Convert UMAP embeddings to a data frame
+umap_df <- as.data.frame(merg_obj@reductions$umap.intgd_atac_h4_rna_h4_d2_40_1_40_k30_wnn@cell.embeddings)
+colnames(umap_df) <- c("UMAP1", "UMAP2")
+merg_obj$percentage_chr7_peaks
+# Add cell type and health condition information
+umap_df$health_condition <- as.factor(merg_obj@meta.data[["health_Cytogenetics"]])
+umap_df$percentage_chr7_peaks <- merg_obj@meta.data[["percentage_chr7_peaks"]]
+# Create scatter plot
+scatter_plot <- ggplot(umap_df, aes(x = UMAP1, y = UMAP2, color = percentage_chr7_peaks)) +
+  geom_point(alpha = 0.8, size = 1) +  # Adjust transparency and size for better visualization
+  scale_color_gradientn(colors = c("#94221F",  "#3194CC"),    
+                   limits = c(1.5, 5),  # Set minimum and maximum thresholds
+                        oob = scales::squish) +  # Squish values outside this range
+  labs(title = "All Cell types (130,875 cells) Chr7 Peaks; Split by Chr7 status",
+       x = "UMAP Dimension 1",
+       y = "UMAP Dimension 2",
+       color = "Chr7 Peak %") +
+  theme_minimal() +  
+  theme(
+    panel.grid = element_blank(),  
+    axis.ticks = element_blank(), 
+    axis.text = element_blank(), 
+    
+    # Increase title, axis labels, and legend text size, and make them bold
+    plot.title = element_text(size = 30, face = "bold", hjust = 0.5),   # Bold and bigger title
+    axis.title.x = element_text(size = 16, face = "bold"),  # Bold X-axis label
+    axis.title.y = element_text(size = 16, face = "bold"),  # Bold Y-axis label
+    legend.title = element_text(size = 14, face = "bold"),  # Bold legend title
+    legend.text = element_text(size = 12, face = "bold"),  # Bold legend labels
+      # Increase facet title (strip) size
+    strip.text = element_text(size = 20, face = "bold"),  # Adjust size as needed
+     # Increase legend color box size
+    legend.key.size = unit(1.5, "cm")
+  ) +
+  facet_wrap(~ health_condition)  # Split by health condition
+
+
+# Specify the PDF file name
+pdf_file <- paste0(fig_path_stnx, "10_Featureplot_main_cell_types_11AML_9healthy_2AMS_umap.intgd_atac_h4_rna_h4_d2_40_1_40_k30_wnn_blue_red_version_3.pdf")
+# Save the combined plot as a single PDF
+ggsave(pdf_file, plot = scatter_plot, width = 24, height = 20)
+```
+
+
+##UMAP_plots progeniotr subset
+```{r, fig.width=34, fig.height=12}
+
+dim(merg_obj_prog)
+# Convert UMAP embeddings to a data frame
+umap_df <- as.data.frame(merg_obj_prog@reductions$umap.Prog_atac_h4_rna_h4_d2_45_1_45_k100_wnn@cell.embeddings)
+colnames(umap_df) <- c("UMAP1", "UMAP2")
+
+# Add cell type and health condition information
+umap_df$cell_type <- as.factor(merg_obj_prog@meta.data[["cell_type_final"]])
+umap_df$health_condition <- as.factor(merg_obj_prog@meta.data[["health_condition"]])
+umap_df$colors_cell_type <- merg_obj_prog@meta.data[["colors_cell_type"]]
+# Define the color palette manually (ensure colors match the unique cell types)
+color_mapping <- setNames(cell_type_colors[custom_order], custom_order)
+# Create scatter plot
+scatter_plot <- ggplot(umap_df, aes(x = UMAP1, y = UMAP2, color = cell_type)) +
+  geom_point(alpha = 0.6, size = 0.9) +  # Adjust transparency and size for better visualization
+ scale_color_manual(values = color_mapping, guide = guide_legend(override.aes = list(size = 9, alpha = 1))) +
+  labs(title = "Progenitors and Monocytes(75,098 cells) Split by Health Condition",
+       x = "UMAP Dimension 1",
+       y = "UMAP Dimension 2",
+       color = "Cell Type") +
+  theme_minimal() +  
+  theme(panel.grid = element_blank(),  # Remove background grid
+        axis.ticks = element_blank(), 
+        axis.text = element_blank(), 
+        plot.title = element_text(hjust = 0.5)) +
+  facet_wrap(~ health_condition)  # Split by health condition
+
+
+# Specify the PDF file name
+pdf_file <- paste0(fig_path_stnx, "10_umap_prog_subset_all_cell_types_11AML_9healthy_2AMS_umap.Prog_atac_h4_rna_h4_d2_45_1_45_k100_wnn_v2.pdf")
+# Save the combined plot as a single PDF
+ggsave(pdf_file, plot = scatter_plot, width = 34, height = 12)
+
+
+```
+##hex umap
+```{r hexumap, fig.width=20}
+# Load the merged data
+# Convert UMAP embeddings to a data frame
+umap_df <- as.data.frame(merg_obj_prog@reductions$umap.Prog_atac_h4_rna_h4_d2_45_1_45_k100_wnn@cell.embeddings)
+colnames(umap_df) <- c("UMAP1", "UMAP2")
+# Add cell type information
+umap_df$cell_type <- merg_obj_prog@meta.data[["cell_type_final"]]
+
+# Convert cell type to a factor
+umap_df$cell_type <- as.factor(umap_df$cell_type)
+# Add cell type information
+umap_df$health_condition <- merg_obj_prog@meta.data[["health_condition"]]
+
+# # Convert cell type to a factor
+# umap_df$health_condition <- as.factor(umap_df$health_condition)
+
+
+min_density <- 5  # Lower density threshold
+max_density <- 200  # Upper density threshold
+?geom_hex
+# Plot with faceting by health condition
+hexplot <- ggplot(umap_df, aes(x = UMAP1, y = UMAP2)) +
+  geom_hex(bins = 50) +  # Adjust `bins` for hexagon granularity
+  scale_fill_gradient(low = "#DEEBF7", high = "#08519C", 
+                      name = "Cell Density",
+                      limits = c(min_density, max_density),  # Set density limits
+                      oob = scales::squish) +  # Squish values outside limits
+  labs(title = "Progenitors and Monocytes Split by health_condition",
+       x = "UMAP Dimension 1",
+       y = "UMAP Dimension 2") +
+  theme(
+    panel.background = element_blank(),  # Remove background
+    panel.grid = element_blank(),        # Remove grid lines
+    axis.ticks = element_blank(),        # Remove axis ticks
+    axis.text = element_blank(),         # Remove axis text
+    plot.title = element_text(hjust = 0.5),  # Center the title
+    strip.background = element_rect(fill = "white", color = "white"),
+     strip.text = element_text(color = "black", face = "bold") 
+  ) +
+  facet_wrap(~ health_condition)  # Split the plot by health condition
+
+
+# Specify the PDF file name
+pdf_file <- paste0(fig_path_stnx, "10_Hexumap_prog_subset_11AML_9healthy_2AMS_umap.Prog_atac_h4_rna_h4_d2_45_1_45_k100_wnn_split_chr7_cyto_v2.pdf")
+# Save the combined plot as a single PDF
+ggsave(pdf_file, plot = hexplot, width = 34, height = 12)
+
+```
+
+#stacked barplot
+```{r}
+meta_df <- merg_obj_prog@meta.data
+# Calculate proportions for each cell type across health conditions
+df_proportion <- meta_df %>%
+  group_by(health_condition, cell_type_final) %>%
+  summarise(count = n()) %>%
+  mutate(proportion = count / sum(count))
+# Extract unique cell types and their assigned colors
+cell_type_colors <- setNames(levels(meta_df$colors_cell_type), levels(meta_df$cell_type_final))
+
+# Create the stacked bar plot
+stacked_bar_plot <- ggplot(df_proportion, aes(x = health_condition, y = proportion, fill = cell_type_final)) +
+  geom_bar(stat = "identity", position = "fill") +
+  coord_flip() +  # Flip coordinates to make the bars horizontal
+  labs(title = "Proportion of Cell Types by Health Condition",
+       x = "Health Condition",
+       y = "Proportion of Cells") +
+  scale_y_continuous(labels = scales::percent) +  # Show proportions as percentages
+  scale_fill_manual(values = cell_type_colors, name = "Cell Type") + 
+  theme_minimal() +
+  theme(legend.position = "bottom",panel.grid = element_blank(),  panel.background = element_blank()) # Remove background) +
+  guides(fill = guide_legend(title = "Cell Type"))
+
+
+
+# Specify the PDF file name
+pdf_file <- paste0(fig_path_stnx, "10_stacked_bar_Progenitors_Monocytes_11AML_9healthy_2AMS_chr7_genes_atac_h4_rna_h4_d2_45_1_45_k100_v2.pdf")
+# Save the combined plot as a single PDF
+ggsave(pdf_file, plot = stacked_bar_plot, width = 10, height = 10)
+
+#########################
+######################### stacked_bar_all_cells
+#########################
+meta_df <- merg_obj@meta.data
+
+# Calculate proportions for each cell type across health conditions
+df_proportion <- meta_df %>%
+  group_by(health_condition, cell_type_final) %>%
+  summarise(count = n()) %>%
+  mutate(proportion = count / sum(count))
+# Extract unique cell types and their assigned colors
+cell_type_colors <- setNames(levels(meta_df$colors_cell_type), levels(meta_df$cell_type_final))
+
+# Create the stacked bar plot
+stacked_bar_plot <- ggplot(df_proportion, aes(x = health_condition, y = proportion, fill = cell_type_final)) +
+  geom_bar(stat = "identity", position = "fill") +
+  coord_flip() +  # Flip coordinates to make the bars horizontal
+  labs(title = "Proportion of Cell Types by Health Condition",
+       x = "Health Condition",
+       y = "Proportion of Cells") +
+  scale_y_continuous(labels = scales::percent) +  # Show proportions as percentages
+  scale_fill_manual(values = cell_type_colors, name = "Cell Type") + 
+  theme_minimal() +
+  theme(legend.position = "bottom",panel.grid = element_blank(),  panel.background = element_blank()) # Remove background) +
+  guides(fill = guide_legend(title = "Cell Type"))
+
+
+# Specify the PDF file name
+pdf_file <- paste0(fig_path_stnx, "10_stacked_bar_all_cells_11AML_9healthy_2AMS_chr7_genes_atac_h4_rna_h4_d2_45_1_45_k100_v2.pdf")
+# Save the combined plot as a single PDF
+ggsave(pdf_file, plot = stacked_bar_plot, width = 10, height = 10)
+
+```
+
+#Alluvial plot splitted
+```{r, fig.width=50, fig.height=10}
+create_alluvial_plot <- function(merg_obj) {
+# Prepare data for Alluvial plot
+  sankey_df <- merg_obj@meta.data %>%
+    transmute(
+      Health_Condition = health_condition,
+      Donor = donor_id,
+      Cell_Type = cell_type_final,
+      colors_cell_type = colors_cell_type
+    )
+  set.seed(42)  
+# Define colors for Health_Condition
+  health_colors <- c(
+    "AML_monosomy" = "#94221F",   # Red
+    "AML_non_monosomy" = "#3194CC",  # Blue
+    "healthy_donors" = "#C0C0C0"   # Gray
+  )
+
+# Create a mapping between Donors and Health Conditions
+  donor_health_mapping <- sankey_df %>%
+    distinct(Donor, Health_Condition) %>%
+    arrange(Donor)  # Ensures consistent order
+
+# Define base colors for gradients
+  color_monosomy <- c("#94221F", "#ECD8D8")  # Red gradient
+  color_non_monosomy <- c("#386cb0", "#C9E3F1")  # Blue gradient
+  color_healthy <- c("#555555", "#EEEEEE")  # Gray gradient
+
+# Generate gradient palettes for each health condition
+  color_monosomy_palette <- colorRampPalette(color_monosomy)(sum(donor_health_mapping$Health_Condition == "AML_monosomy"))
+  color_non_monosomy_palette <- colorRampPalette(color_non_monosomy)(sum(donor_health_mapping$Health_Condition == "AML_non_monosomy"))
+  color_healthy_palette <- colorRampPalette(color_healthy)(sum(donor_health_mapping$Health_Condition == "healthy_donors"))
+
+# Assign colors to donors based on their health condition
+  donor_colors <- donor_health_mapping %>%
+    group_by(Health_Condition) %>%  # Group by Health Condition
+    mutate(
+      Donor_Color = case_when(
+        Health_Condition == "AML_monosomy" ~ color_monosomy_palette[row_number()],
+        Health_Condition == "AML_non_monosomy" ~ color_non_monosomy_palette[row_number()],
+        Health_Condition == "healthy_donors" ~ color_healthy_palette[row_number()],
+        TRUE ~ NA_character_
+      )
+    ) %>%
+    ungroup() %>%
+    select(Donor, Donor_Color) %>%
+    deframe()
+
+# Define the color palette manually (ensure colors match the unique cell types)
+cell_type_colors <- setNames(levels(sankey_df$colors_cell_type), levels(sankey_df$Cell_Type))
+
+# color_mapping <- setNames(cell_type_colors[custom_order], custom_order)
+
+  # Merge all colors into one mapping
+  all_colors <- c(health_colors, donor_colors, cell_type_colors)
+
+names(all_colors)
+
+sankey_df$Health_Condition <- factor(
+  sankey_df$Health_Condition, 
+  levels = c("AML_monosomy", "AML_non_monosomy", "healthy_donors")  # Ensure this order
+)
+
+# Ensure Donor is grouped by Health Condition and then sorted
+donor_levels <- sankey_df %>%
+  arrange(Health_Condition, Donor) %>%  # Sort donors within each health condition
+  distinct(Donor) %>%  # Keep only unique donors
+  pull(Donor)  # Extract sorted donor names as a vector
+
+sankey_df$Donor <- factor(sankey_df$Donor, levels = donor_levels)
+
+sankey_df$Cell_Type <- factor(sankey_df$Cell_Type, levels = custom_order)
+
+# Generate three separate plots
+  plots <- lapply(unique(sankey_df$Health_Condition), function(condition) {
+    sankey_subset <- sankey_df %>% filter(Health_Condition == condition)
+    
+    ggplot(
+      sankey_subset,
+    aes(
+      axis1 = Health_Condition,
+      axis2 = Donor,
+      axis3 = Cell_Type,
+      fill = Cell_Type  # Ensures color mapping aligns properly
+    )
+  ) +
+# geom_alluvium(aes(fill = Cell_Type), alpha = 0.2) +  # Flow lines
+    geom_flow(aes(fill = Cell_Type,), alpha = 0.5,width = 0.2)+
+
+# geom_stratum(aes(fill = factor(..stratum..)), width = 0.2,alpha = 0.9) +  # Nodes, correctly colored
+    geom_stratum(aes(fill = factor(..stratum..)), width = 0.2, alpha = 1, na.rm = TRUE, color = NA)+
+
+    scale_fill_manual(
+  values = all_colors, 
+  breaks = c("AML_monosomy", "AML_non_monosomy", "healthy_donors", levels(sankey_df$Donor), levels(sankey_subset$Cell_Type)),  
+  na.translate = FALSE
+)+
+
+  guides(
+    shape = guide_legend(order = 1),  # Health Condition first
+    color = guide_legend(order = 2),  # Donor second
+    fill = guide_legend(order = 3)    # Cell Type last
+  ) +
+    
+    theme_minimal() +
+    theme(
+      legend.position = "right",
+      axis.title = element_blank(),
+      axis.text.y = element_blank(),
+      axis.ticks = element_blank(),
+      panel.grid = element_blank(),
+      legend.key.height = unit(0.5, 'cm'),  # Reduce legend size
+      legend.key.width = unit(0.5, 'cm'),
+      legend.title = element_blank()  # Remove extra legend title
+    ) +
+    ggtitle("Alluvial Plot: Health Condition to Donor to Cell Type")
+  })
+  
+  return(plots)
+}
+
+##############
+##############
+plots <- create_alluvial_plot(merg_obj)
+alluvial_grid <- gridExtra::grid.arrange(grobs = plots, ncol = 3)
+
+# Specify the PDF file name
+pdf_file <- paste0(fig_path_stnx, "10_Alluvial_plot__11AML_9healthy_2AMS_v3.pdf")
+
+
+# Save the combined plot as a single PDF
+ggsave(pdf_file, plot = alluvial_grid, width = 35, height = 15)
+
+
+##############
+##############
+
+plots <- create_alluvial_plot(merg_obj_prog)
+alluvial_grid <- gridExtra::grid.arrange(grobs = plots, ncol = 3)
+
+# Specify the PDF file name
+pdf_file <- paste0(fig_path_stnx, "10_Alluvial_plot__only_prog_mono_11AML_9healthy_2AMS_v2.pdf")
+
+
+# Save the combined plot as a single PDF
+ggsave(pdf_file, plot = alluvial_grid, width = 35, height = 15)
+
+  
+```
+##Alluvial plot all cells
+
+```{r, fig.width=50, fig.height=10}
+create_alluvial_plot <- function(merg_obj) {
+  # Prepare data for Alluvial plot
+  sankey_df <- merg_obj@meta.data %>%
+    transmute(
+      Health_Condition = health_condition,
+      Donor = donor_id,
+      Cell_Type = cell_type_final,
+      colors_cell_type = colors_cell_type
+    )
+  set.seed(42)  #
+  # sankey_df <- sankey_df %>% sample_n(500)
+
+    # Define colors for Health_Condition
+  health_colors <- c(
+    "AML_monosomy" = "#94221F",   # Red
+    "AML_non_monosomy" = "#3194CC",  # Blue
+    "healthy_donors" = "#C0C0C0"   # Gray
+  )
+
+  # Create a mapping between Donors and Health Conditions
+  donor_health_mapping <- sankey_df %>%
+    distinct(Donor, Health_Condition) %>%
+    arrange(Donor)  # Ensures consistent order
+
+  # Define base colors for gradients
+  color_monosomy <- c("#94221F", "#ECD8D8")  # Red gradient
+  color_non_monosomy <- c("#386cb0", "#C9E3F1")  # Blue gradient
+  color_healthy <- c("#555555", "#EEEEEE")  # Gray gradient
+
+  # Generate gradient palettes for each health condition
+  color_monosomy_palette <- colorRampPalette(color_monosomy)(sum(donor_health_mapping$Health_Condition == "AML_monosomy"))
+  color_non_monosomy_palette <- colorRampPalette(color_non_monosomy)(sum(donor_health_mapping$Health_Condition == "AML_non_monosomy"))
+  color_healthy_palette <- colorRampPalette(color_healthy)(sum(donor_health_mapping$Health_Condition == "healthy_donors"))
+
+  # Assign colors to donors based on their health condition
+  donor_colors <- donor_health_mapping %>%
+    group_by(Health_Condition) %>%  # Group by Health Condition
+    mutate(
+      Donor_Color = case_when(
+        Health_Condition == "AML_monosomy" ~ color_monosomy_palette[row_number()],
+        Health_Condition == "AML_non_monosomy" ~ color_non_monosomy_palette[row_number()],
+        Health_Condition == "healthy_donors" ~ color_healthy_palette[row_number()],
+        TRUE ~ NA_character_
+      )
+    ) %>%
+    ungroup() %>%
+    select(Donor, Donor_Color) %>%
+    deframe()
+
+  # Define the color palette manually (ensure colors match the unique cell types)
+cell_type_colors <- setNames(levels(sankey_df$colors_cell_type), levels(sankey_df$Cell_Type))
+
+# color_mapping <- setNames(cell_type_colors[custom_order], custom_order)
+
+  # Merge all colors into one mapping
+  all_colors <- c(health_colors, donor_colors, cell_type_colors)
+
+names(all_colors)
+
+sankey_df$Health_Condition <- factor(
+  sankey_df$Health_Condition, 
+  levels = c("AML_monosomy", "AML_non_monosomy", "healthy_donors")  # Ensure this order
+)
+
+# Ensure Donor is grouped by Health Condition and then sorted
+donor_levels <- sankey_df %>%
+  arrange(Health_Condition, Donor) %>%  # Sort donors within each health condition
+  distinct(Donor) %>%  # Keep only unique donors
+  pull(Donor)  # Extract sorted donor names as a vector
+
+# Now assign this sorted order as the factor levels for Donor
+sankey_df$Donor <- factor(sankey_df$Donor, levels = donor_levels)
+
+sankey_df$Cell_Type <- factor(sankey_df$Cell_Type, levels = custom_order)
+
+
+# Generate three separate plots
+   plot <-  ggplot(
+      sankey_df,
+    aes(
+      axis1 = Health_Condition,
+      axis2 = Donor,
+      axis3 = Cell_Type,
+      fill = Cell_Type  # Ensures color mapping aligns properly
+    )
+  ) +
+# geom_alluvium(aes(fill = Cell_Type), alpha = 0.2) +  # Flow lines
+    geom_flow(aes(fill = Cell_Type,), alpha = 0.5,width = 0.2)+
+
+# geom_stratum(aes(fill = factor(..stratum..)), width = 0.2,alpha = 0.9) +  # Nodes, correctly colored
+    geom_stratum(aes(fill = factor(..stratum..)), width = 0.2, alpha = 1, na.rm = TRUE, color = NA)+
+
+    scale_fill_manual(
+  values = all_colors, 
+  breaks = c("AML_monosomy", "AML_non_monosomy", "healthy_donors", levels(sankey_df$Donor), levels(sankey_df$Cell_Type)),  
+  na.translate = FALSE
+)+
+
+  guides(
+    shape = guide_legend(order = 1),  # Health Condition first
+    color = guide_legend(order = 2),  # Donor second
+    fill = guide_legend(order = 3)    # Cell Type last
+  ) +
+    
+    theme_minimal() +
+    theme(
+      legend.position = "right",
+      axis.title = element_blank(),
+      axis.text.y = element_blank(),
+      axis.ticks = element_blank(),
+      panel.grid = element_blank(),
+      legend.key.height = unit(0.5, 'cm'),  # Reduce legend size
+      legend.key.width = unit(0.5, 'cm'),
+      legend.title = element_blank()  # Remove extra legend title
+    ) +
+    ggtitle("Alluvial Plot: Health Condition to Donor to Cell Type")
+  
+  return(plot)
+}
+
+plot <- create_alluvial_plot(merg_obj)
+
+# Specify the PDF file name
+pdf_file <- paste0(fig_path_stnx, "10_Alluvial_plot__all_cells_conditions_11AML_9healthy_2AMS_v2.pdf")
+
+
+# Save the combined plot as a single PDF
+ggsave(pdf_file, plot = plot, width = 25, height = 15)
+
+  
+```
+
+#DEG and DAR visualisation
+```{r, fig.height=10, fig.width=10}
+generate_peak_overlap_gene_tbl_fun <- function(results=results_DAPs, merg_obj, Chr7_genes,Chr7_peaks, upstream=160, downstream= 160) {
+  # Set the default assay for the merged object
+  DefaultAssay(merg_obj) <- "ATAC"
+  # Get the annotation for the ATAC data
+  annotation <- Signac::Annotation(object = merg_obj)
+  regions <- rownames(merg_obj@assays$ATAC$counts)
+      # Convert regions to GRanges object and extend them
+      x <- Signac::StringToGRanges(regions)
+      x@ranges@NAMES <- regions
+      peak_ranges <- Signac::Extend(
+        x = x,
+        upstream = upstream,
+        downstream = downstream
+      )
+      peak_ranges@ranges@NAMES <- x@ranges@NAMES
+      
+      # Find overlaps between peaks and gene annotations
+      overlap_peaks <- IRanges::findOverlaps(query = peak_ranges, subject = annotation)
+      overlap_genes <- annotation[subjectHits(overlap_peaks)]
+      original_peak_names <- peak_ranges@ranges@NAMES[queryHits(overlap_peaks)]
+      overlap_genes@ranges@NAMES <- original_peak_names
+      length(original_peak_names) #1114280
+          overlap_peaks_df <- data.frame(
+        peak_name = original_peak_names,
+        gene = overlap_genes$gene_name,
+        gene_biotype = overlap_genes$gene_biotype,
+        gene_type = overlap_genes$type)
+      dim(overlap_peaks_df) #1114280       4
+ overlap_peaks_df <- overlap_peaks_df[overlap_peaks_df$gene %in% rownames(merg_obj@assays$RNA$counts), ]
+ dim(overlap_peaks_df) #1056761       4
+ # Remove rows where both peak_name and gene are identical
+overlap_peaks_df <- overlap_peaks_df[!duplicated(overlap_peaks_df[, c("peak_name", "gene")]), ]
+ dim(overlap_peaks_df) #119171       4
+# Initialize a list to store the overlap data for each group
+  overlap_DAR_list <- list()
+  for (group_name in names(results)) {
+    if (group_name != "chr7_peaks") {
+# Extract DAP table for the current group
+      DAP_tbl <- results[[group_name]]$results
+      dim(DAP_tbl) #25272
+# DAP_tbl <- DAP_tbl[DAP_tbl$padj < 0.05 & !is.na(DAP_tbl$padj), ]
+     dim(DAP_tbl) #857
+# Prepare data frame for DAP-gene mappings with statistics
+     valid_peaks <- overlap_peaks_df$peak_name %in% rownames(DAP_tbl)
+      valid_overlap_peaks_df <- overlap_peaks_df[valid_peaks,] 
+      overlap_stats <- data.frame(
+        peak_name = valid_overlap_peaks_df$peak_name,
+        gene_name = valid_overlap_peaks_df$gene,
+        gene_biotype = valid_overlap_peaks_df$gene_biotype,
+        gene_type = valid_overlap_peaks_df$gene_type,
+        ATAC.logFC = DAP_tbl[valid_overlap_peaks_df$peak_name, "log2FoldChange"],
+        ATAC.lfcSE = DAP_tbl[valid_overlap_peaks_df$peak_name, "lfcSE"],
+        ATAC.pval = DAP_tbl[valid_overlap_peaks_df$peak_name, "pvalue"],
+        ATAC.padj = DAP_tbl[valid_overlap_peaks_df$peak_name, "padj"]
+      )
+dim(overlap_stats) #
+# Summarize and transform the data
+      df <- overlap_stats %>%
+        dplyr::group_by(gene_name) %>%
+        dplyr::summarise(
+          peak_nameS = paste(unique(peak_name), collapse = ", "),
+            gene_biotypeS = paste(gene_biotype, collapse = ", "),
+          gene_typeS = paste(gene_type, collapse = ", "),
+          ATAC.logFCs = paste(ATAC.logFC, collapse = ", "),
+          ATAC.lfcSES = paste(ATAC.lfcSE, collapse = ", "),
+          ATAC.pvalS = paste(ATAC.pval, collapse = ", "),
+          ATAC.padjS = paste(ATAC.padj, collapse = ", "),
+          ATAC.maxlogFC = if (all(is.na(ATAC.logFC))) {
+  NA
+} else {
+  logFC_values <- ATAC.logFC[!is.na(ATAC.logFC)]
+  if (length(logFC_values) == 0) NA else logFC_values[which.max(abs(logFC_values))]
+},
+ATAC.minPadj = if (all(is.na(ATAC.padj))) {
+  NA
+} else {
+  min(ATAC.padj, na.rm = TRUE)
+} ) %>%
+
+        dplyr::arrange(ATAC.minPadj) %>%
+        dplyr::mutate(
+          Chr7_genes = gene_name %in% Chr7_genes,
+          ATAC_significant = ATAC.minPadj < 0.05
+        )
+      
+  overlap_DAR_list[[group_name]] <- df
+   print(paste0("Mapping for :" , group_name, " finished" ))
+
+}}
+ 
+   return(overlap_DAR_list)
+  
+}
+# 
+results_DEGs <- readRDS(paste0(rds_path_vst, "05_002_DeSeq2_RNA_results_clustering_wsnn_intgd_atac_h4_rna_h4_d2_45_1_45_k100_res.0.5_1_50_cells_10_3_100_Genes_subset_cutoff.rds"))
+results_DAPs <- readRDS(paste0(rds_path_vst, "05_002_DeSeq2_ATAC_results_clustering_wsnn_intgd_atac_h4_rna_h4_d2_45_1_45_k100_res.0.5_1_50_cells_300_3_1000_peaks.rds"))
+
+DPGs_tbl <- generate_peak_overlap_gene_tbl_fun(results=results_DAPs, merg_obj, Chr7_genes,Chr7_peaks, upstream=160, downstream= 160)
+saveRDS(DPGs_tbl, paste0(rds_path_vst, "10_DPGs_tbl_DeSeq2_ATAC_clustering_wsnn_all_Cells_intgd_atac_h4_rna_h4_d2_45_1_45_k100_res.0.5_50_cells_300_3_1000_MONOSOMY_CUTOFF_peaks_converted_to_genes_body+160bp_v2_nonsig_included.rds"))
+
+
+DEGs_tbls <- list()
+  for (group in names(results_DEGs)) {
+  res_tbl <- results_DEGs[[group]]$results %>%
+        data.frame() %>%
+        rownames_to_column(var="gene_name") %>%
+        as_tibble() 
+# res_tbl$Chr7_genes = res_tbl$gene_name %in%Chr7_genes
+# res_tbl <- res_tbl[!is.na(res_tbl$padj), ]
+# res_tbl <- res_tbl[res_tbl$padj <0.05,]
+
+    colnames(res_tbl) <-ifelse(colnames(res_tbl)=="gene_name", "gene_name", paste0("RNA_", colnames(res_tbl)))
+DEGs_tbls[[group]] <- res_tbl}
+
+
+
+
+
+
+join_DE_DAP_list <- list()
+
+for (group in names(DPGs_tbl)) {
+DEG_tbl <- DEGs_tbls[[group]] 
+DAG_tbl <- DPGs_tbl[[group]] 
+join_DE_DAP<- full_join(
+x = DAG_tbl ,
+y = DEG_tbl, by = "gene_name")
+join_DE_DAP_list[[group]] <- join_DE_DAP
+}
+
+# saveRDS(join_DE_DAP_list, paste0(rds_path_vst, "10_join_DEG_DAP_list_DeSeq2_clustering_wsnn_all_Cells_intgd_atac_h4_rna_h4_d2_45_1_45_k100_res.0.5_50_cells_300_3_1000_MONOSOMY_CUTOFF_peaks_converted_to_genes_body_160bp_nonsig_included.rds"))
+
+join_DE_DAP_list <- readRDS(paste0(rds_path_vst, "10_join_DEG_DAP_list_DeSeq2_clustering_wsnn_all_Cells_intgd_atac_h4_rna_h4_d2_45_1_45_k100_res.0.5_50_cells_300_3_1000_MONOSOMY_CUTOFF_peaks_converted_to_genes_body+160bp.rds"))
+
+merged_tbls_names <- ifelse(names(join_DE_DAP_list) == "Cluster0", "CD14_Mono_Mono_like", 
+  ifelse(names(join_DE_DAP_list) == "Cluster1", "Progenitor_like",
+  ifelse(names(join_DE_DAP_list) == "Cluster2", "Progenitor_like",
+  ifelse(names(join_DE_DAP_list) == "Cluster3", "MEP_like",
+  ifelse(names(join_DE_DAP_list) == "Cluster4", "Progenitor_like",
+  ifelse(names(join_DE_DAP_list) == "Cluster5", "LMPP",
+  ifelse(names(join_DE_DAP_list) == "Cluster6", "CMP_like",
+  ifelse(names(join_DE_DAP_list) == "Cluster7", "LMPP",
+  ifelse(names(join_DE_DAP_list) == "Cluster8", "GMP_like",
+  ifelse(names(join_DE_DAP_list) == "Cluster9", "LMPP",
+  ifelse(names(join_DE_DAP_list) == "Cluster10", "HSC_like",
+  ifelse(names(join_DE_DAP_list) == "Cluster11", "CD14_Mono_Mono_like",
+  ifelse(names(join_DE_DAP_list) == "Cluster12", "Progenitor_like", 
+  ifelse(names(join_DE_DAP_list) == "Cluster13", "LMPP",
+  ifelse(names(join_DE_DAP_list) == "Cluster14", "pDC_like",
+                      ifelse(names(join_DE_DAP_list) == "Cluster15", "CD16_Mono_Mono_like",
+                               ifelse(names(join_DE_DAP_list) == "Cluster16", "Progenitor_like",
+                                        ifelse(names(join_DE_DAP_list) == "Cluster17", "MEP_like",
+                                                 ifelse(names(join_DE_DAP_list) == "Cluster18", "MEP_like",
+                                                          ifelse(names(join_DE_DAP_list) == "Cluster19", "CD14_Mono_Mono_like",
+                                                                   ifelse(names(join_DE_DAP_list) == "Cluster20", "LMPP",
+                                                                           ifelse(names(join_DE_DAP_list) == "ClusterB_cells", "B_cells",
+                                                                                   ifelse(names(join_DE_DAP_list) == "ClusterT_cells", "T_cells",
+         NA)))))))))))))))))))))))
+
+# Step 2: Add cell type labels to each table
+names(join_DE_DAP_list) <- merged_tbls_names
+
+# Step 3: Group tables by cell type and merge them
+DPG_DEG_final_list <- lapply(unique(merged_tbls_names), function(cell_type) {
+  # Get all tables corresponding to the current cell type
+  tables_to_merge <- join_DE_DAP_list[names(join_DE_DAP_list) == cell_type]
+  
+  # Merge all tables
+  merged_table <- do.call(rbind, tables_to_merge)
+  
+  # Resolve conflicts by selecting rows with lowest min_padj and highest max_logFC
+  resolved_table <- merged_table %>%
+    group_by(gene_name) %>%
+    summarise(
+      peak_nameSS = paste(peak_nameS, collapse = ", "),
+      ATAC.logFcSS = paste(ATAC.logFCs, collapse = ", "),
+      gene_typeSS = paste(gene_typeS, collapse = ", "),
+          ATAC.lfcSESS = paste(ATAC.lfcSES, collapse = ", "),
+          ATAC.pvalSS = paste(ATAC.pvalS, collapse = ", "),
+          ATAC.padjSS = paste(ATAC.padjS, collapse = ", "),
+      RNA.padjS = paste(RNA_padj, collapse = ", "),
+      RNA.logFcS = paste(RNA_log2FoldChange, collapse = ", "),
+      RNA.lfcSES = paste(RNA_lfcSE, collapse = ", "),
+          ATAC.maxmaxlogFC = if (all(is.na(ATAC.maxlogFC))) {
+  NA
+} else {
+  logFC_values <- ATAC.maxlogFC[!is.na(ATAC.maxlogFC)]
+  if (length(logFC_values) == 0) NA else logFC_values[which.max(abs(logFC_values))]
+},
+ATAC.minminPadj = if (all(is.na(ATAC.minPadj))) {
+  NA
+} else {
+  min(ATAC.minPadj, na.rm = TRUE)
+},
+  RNA.maxlogFC = if (all(is.na(RNA_log2FoldChange))) {
+  NA
+} else {
+  logFC_values <- RNA_log2FoldChange[!is.na(RNA_log2FoldChange)]
+  if (length(logFC_values) == 0) NA else logFC_values[which.max(abs(logFC_values))]
+},
+RNAminPadj = if (all(is.na(RNA_padj))) {
+  NA
+} else {
+  min(RNA_padj, na.rm = TRUE)
+} )%>%
+        dplyr::mutate(
+          ATAC_significant = ATAC.minminPadj < 0.05,
+          RNA_significant = RNAminPadj < 0.05,
+  ATAC_RNA_significant = ATAC.minminPadj < 0.05 & RNAminPadj < 0.05,
+  ATAC_RNA_non_significant = ATAC.minminPadj > 0.05 & RNAminPadj > 0.05,
+  Chr7_genes = gene_name %in% Chr7_genes,
+  up_monosomy_atac = ATAC.maxmaxlogFC > 0,
+  up_monosomy_RNA = RNA.maxlogFC >0 )
+  # %>% filter(ATAC_RNA_non_significant != TRUE)
+  return(resolved_table)
+})
+
+
+
+          
+# Step 4: Assign names to the merged tables
+names(DPG_DEG_final_list) <- unique(merged_tbls_names)
+
+
+# Create a workbook
+wb <- createWorkbook()
+
+# Loop through the data and add worksheets
+for (sheet_name in names(DPG_DEG_final_list)) {
+  sheet_tbl <- DPG_DEG_final_list[[sheet_name]]
+  sheet_name <- substr(sheet_name, 1, 31)  # Truncate sheet name if it exceeds 31 characters
+
+  # Add a worksheet
+  addWorksheet(wb, sheet_name)
+
+  # Write data as a table with the filter option enabled
+  writeDataTable(wb, sheet = sheet_name, x = sheet_tbl, tableStyle = "TableStyleLight1")
+}
+saveWorkbook(wb, file = paste0(fig_path_stnx, "10_DeSeq2_DAR_DAP_clustering_wsnn_all_Cells_intgd_atac_h4_rna_h4_d2_45_1_45_k100_res.0.5_50_cells_300_3_1000_MONOSOMY_CUTOFF_peaks_converted_to_genes_160bp_up_down_DPG_merged_Per_cell_types_non_significants.xlsx"), overwrite = FALSE)
+
+
+# saveRDS(DPG_DEG_final_list, paste0(rds_path_vst, "10_DeSeq2_DAR_DAP_clustering_wsnn_all_Cells_intgd_atac_h4_rna_h4_d2_45_1_45_k100_res.0.5_50_cells_300_3_1000_MONOSOMY_CUTOFF_peaks_converted_to_genes_160bp_up_down_DPG_merged_Per_cell_types_non_significants.rds"))
+saveRDS(DPG_DEG_final_list, paste0(rds_path_vst, "10_DeSeq2_DAR_DAP_clustering_wsnn_all_Cells_intgd_atac_h4_rna_h4_d2_45_1_45_k100_res.0.5_50_cells_300_3_1000_MONOSOMY_CUTOFF_peaks_converted_to_genes_160bp_up_down_DPG_merged_Per_cell_types_only_significants.rds"))
+```
+
+##scatter DAR&DEG
+```{r, scatter}
+DPG_DEG_final_list <- readRDS(paste0(rds_path_vst, "10_DeSeq2_DAR_DAP_clustering_wsnn_all_Cells_intgd_atac_h4_rna_h4_d2_45_1_45_k100_res.0.5_50_cells_300_3_1000_MONOSOMY_CUTOFF_peaks_converted_to_genes_160bp_up_down_DPG_merged_Per_cell_types_non_significants.rds"))
+
+
+# #####################
+# ##################### Scatter ATAC vs RNA plot
+# #####################
+# # Initialize a list to store plots
+# plots_list <- list()
+# for (cell_type in names(DPG_DEG_final_list)){
+# # Extract the dataframe for Progenitor-like
+# df <- DPG_DEG_final_list[[cell_type]]
+# 
+# # Convert relevant columns to numeric and replace NA with 0
+# df <- df %>%
+#   mutate(
+#     ATAC.maxmaxlogFC = ifelse(is.na(ATAC.maxmaxlogFC), 0, ATAC.maxmaxlogFC),
+#     RNA.maxlogFC = ifelse(is.na(RNA.maxlogFC), 0, RNA.maxlogFC)
+#   )
+# 
+# # Ensure logical columns are treated correctly
+# df <- df %>%
+#   mutate(
+#     ATAC_RNA_significant = as.logical(ATAC_RNA_significant),
+#     ATAC_significant = as.logical(ATAC_significant),
+#     RNA_significant = as.logical(RNA_significant)
+#   )
+# 
+# # Define colors based on multiple significance columns
+# df <- df %>%
+#   mutate(
+#     color = case_when(
+#       ATAC_RNA_significant == TRUE ~ "ATAC & RNA Significant",
+#       ATAC_significant == TRUE & (is.na(ATAC_RNA_significant) | ATAC_RNA_significant == FALSE) ~ "ATAC Significant",
+#       RNA_significant == TRUE & (is.na(ATAC_RNA_significant) | ATAC_RNA_significant == FALSE) ~ "RNA Significant",
+#       TRUE ~ "Not Significant"
+#     )
+#   )
+# df$color <- factor(df$color, levels = c("Not Significant", 
+#                                         "ATAC Significant", 
+#                                         "RNA Significant", 
+#                                         "ATAC & RNA Significant"))
+# df <- df %>%
+#   arrange(factor(color, levels = c("Not Significant", 
+#                                    "ATAC Significant", 
+#                                    "RNA Significant", 
+#                                    "ATAC & RNA Significant")))
+# 
+#     # Label genes with padj < 0.05
+# df$label <- ifelse(df$color != "Not Significant", df$gene_name, NA)
+# 
+# # Determine max values for symmetrical axis limits
+# x_lim_max <- max(abs(df$ATAC.maxmaxlogFC), na.rm = TRUE)  # Get max abs value for x-axis
+# y_lim_max <- max(abs(df$RNA.maxlogFC), na.rm = TRUE)  # Get max abs value for y-axis
+# 
+# # Create jittered scatter plot
+# FC_plot <- ggplot(df, aes(x = ATAC.maxmaxlogFC, y = RNA.maxlogFC, color = color)) +
+#       # 1️⃣ First plot "Not Significant" (background points)
+#     geom_jitter(data = df[df$color == "Not Significant", ], 
+#                 aes(x = ATAC.maxmaxlogFC, y = RNA.maxlogFC, color = color),
+#                 size = 1, alpha = 0.1, width = 0, height = 0) +
+# 
+#     # 2️⃣ Then plot "ATAC Significant" points
+#     geom_jitter(data = df[df$color == "ATAC Significant", ], 
+#                 aes(x = ATAC.maxmaxlogFC, y = RNA.maxlogFC, color = color),
+#                 size = 1, alpha = 0.8, width = 0, height = 0.1) +
+# 
+#     # 3️⃣ Then plot "RNA Significant" points
+#     geom_jitter(data = df[df$color == "RNA Significant", ], 
+#                 aes(x = ATAC.maxmaxlogFC, y = RNA.maxlogFC, color = color),
+#                 size = 1, alpha = 0.8, width = 0.1, height = 0) +
+# 
+#     # 4️⃣ Finally, plot "ATAC & RNA Significant" points (top layer)
+#     geom_jitter(data = df[df$color == "ATAC & RNA Significant", ], 
+#                 aes(x = ATAC.maxmaxlogFC, y = RNA.maxlogFC, color = color),
+#                 size = 1, alpha = 0.8, width = 0, height = 0) +
+#   
+#     #   # Apply jitter to all points together
+#     # geom_jitter(aes(x = ATAC.maxmaxlogFC, y = RNA.maxlogFC), 
+#     #             size = 1, alpha = 0.8, width = 0.1, height = 0.1) +
+#    geom_text_repel(
+#          aes(label = label),  # Force text to match jittered points
+#         nudge_x = 0.2,
+#         size = 1.5,
+#         min.segment.length = 0.1,
+#         max.overlaps = Inf,
+#         box.padding = 0.2,
+#         segment.size = 0.1,
+#         show.legend = FALSE,
+#         force = 2,  # Stronger force to keep label connected to dot
+#       ) +
+#       geom_vline(xintercept = 0, color = "black", linetype = "dashed", size = 0.2) +
+#       geom_hline(yintercept = 0, linetype = "dashed", color = "black", size = 0.2) +
+#   scale_color_manual(values = c("ATAC & RNA Significant" = "#EE0000FF",
+#                                 "Not Significant" = "lightgray",
+#                                 "ATAC Significant" = "#3B4992FF",
+#                                 "RNA Significant" = "#008B45FF"),
+#                      guide = guide_legend(override.aes = list(size = 9, alpha = 1))) +
+#   labs(title = cell_type,
+#        x = "ATAC max logFC",
+#        y = "RNA max logFC",
+#        color = "Significance") +
+#   theme_minimal() +  
+#   theme(
+#     panel.grid = element_blank(),  # Keep grid blank for a cleaner look
+#     axis.ticks = element_line(),   # Restore axis ticks
+#     axis.title = element_text(size = 14, face = "bold"),
+#     axis.text = element_text(size = 12),  # Restore axis labels with appropriate size
+#      panel.border = element_rect(color = "black", fill = NA, size = 1),  # Add border around the panel
+#     plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),  # Title formatting
+# )+
+#     coord_cartesian(xlim = c(-x_lim_max, x_lim_max), ylim = c(-y_lim_max, y_lim_max))  # Fix axis range symmetrically
+#   
+#     
+# 
+#   # Store the plot in the list
+#   plots_list[[cell_type]] <- FC_plot
+# }
+
+
+
+
+# Initialize a list to store plots
+plots_list <- list()
+
+for (cell_type in names(DPG_DEG_final_list)){
+    # Extract the dataframe for Progenitor-like
+    df <- DPG_DEG_final_list[[cell_type]]
+
+    # Convert relevant columns to numeric and replace NA with 0
+    df <- df %>%
+      mutate(
+        ATAC.maxmaxlogFC = ifelse(is.na(ATAC.maxmaxlogFC), 0, -ATAC.maxmaxlogFC),
+        RNA.maxlogFC = ifelse(is.na(RNA.maxlogFC), 0, -RNA.maxlogFC)
+      )
+
+    # Ensure logical columns are treated correctly
+    df <- df %>%
+      mutate(
+        ATAC_RNA_significant = as.logical(ATAC_RNA_significant),
+        ATAC_significant = as.logical(ATAC_significant),
+        RNA_significant = as.logical(RNA_significant)
+      )
+
+    # Define colors based on multiple significance columns
+    df <- df %>%
+      mutate(
+        color = case_when(
+          ATAC_RNA_significant == TRUE ~ "ATAC & RNA Significant",
+          ATAC_significant == TRUE & (is.na(ATAC_RNA_significant) | ATAC_RNA_significant == FALSE) ~ "ATAC Significant",
+          RNA_significant == TRUE & (is.na(ATAC_RNA_significant) | ATAC_RNA_significant == FALSE) ~ "RNA Significant",
+          TRUE ~ "Not Significant"
+        )
+      )
+
+    # Convert to factor for correct ordering
+    df$color <- factor(df$color, levels = c("Not Significant", "ATAC Significant", "RNA Significant", "ATAC & RNA Significant"))
+
+    # Label genes with padj < 0.05
+    df$label <- ifelse(df$color != "Not Significant", df$gene_name, NA)
+
+    # **Precompute Jittered Coordinates Only When ATAC or RNA is Zero**
+    set.seed(42)  # For reproducibility
+    # df <- df %>%
+    #   mutate(
+    #     jittered_x = ifelse(ATAC.maxmaxlogFC == 0, ATAC.maxmaxlogFC + rnorm(n(), mean = 0, sd = 0.1), ATAC.maxmaxlogFC),
+    #     jittered_y = ifelse(RNA.maxlogFC == 0, RNA.maxlogFC + rnorm(n(), mean = 0, sd = 0.45), RNA.maxlogFC)
+    #   )
+    df <- df %>%
+  mutate(
+    jittered_x = ifelse(ATAC.maxmaxlogFC == 0, ATAC.maxmaxlogFC + runif(n(), -0.2, 0.2), ATAC.maxmaxlogFC),
+    jittered_y = ifelse(RNA.maxlogFC == 0, RNA.maxlogFC + runif(n(), -1, 1), RNA.maxlogFC)
+  )
+
+
+    # Determine max values for symmetrical axis limits
+    x_lim_max <- max(abs(df$jittered_x), na.rm = TRUE)
+    y_lim_max <- max(abs(df$jittered_y), na.rm = TRUE)
+
+    # Create scatter plot using precomputed jitter
+    FC_plot <- ggplot(df, aes(x = jittered_x, y = jittered_y, color = color)) +
+      geom_point(data = df[df$color == "Not Significant", ], size = 1, alpha = 0.1) +
+      geom_point(data = df[df$color == "ATAC Significant", ], size = 1, alpha = 0.8) +
+      geom_point(data = df[df$color == "RNA Significant", ], size = 1, alpha = 0.8) +
+      geom_point(data = df[df$color == "ATAC & RNA Significant", ], size = 1, alpha = 0.8) +
+
+      # Label points using the **same** jittered coordinates
+      geom_text_repel(
+        aes(label = label),
+        size = 1.5,
+        min.segment.length = 0.1,
+        max.overlaps = Inf,
+        box.padding = 0.2,
+        segment.size = 0.1,
+        show.legend = FALSE,
+        force = 2
+      ) +
+
+      # Reference lines
+      geom_vline(xintercept = 0, color = "black", linetype = "dashed", size = 0.2) +
+      geom_hline(yintercept = 0, linetype = "dashed", color = "black", size = 0.2) +
+
+      # # Manual color mapping
+      # scale_color_manual(values = c(
+      #   "ATAC & RNA Significant" = "#EE0000FF",
+      #   "Not Significant" = "lightgray",
+      #   "ATAC Significant" = "#3B4992FF",
+      #   "RNA Significant" = "#008B45FF"
+      # )) +
+          # Manual color mapping
+      scale_color_manual(values = c(
+        "ATAC & RNA Significant" = "#94221F",
+        "Not Significant" = "lightgray",
+        "ATAC Significant" = "#3194CC",
+        "RNA Significant" = "#00A087FF"
+      )) +
+
+      labs(title = cell_type,
+           x = "ATAC max logFC",
+           y = "RNA max logFC",
+           color = "Significance") +
+      theme_minimal() +
+      theme(
+        panel.grid = element_blank(),
+        axis.ticks = element_line(),
+        axis.title = element_text(size = 14, face = "bold"),
+        axis.text = element_text(size = 12),
+        panel.border = element_rect(color = "black", fill = NA, size = 1),
+        plot.title = element_text(hjust = 0.5, size = 14, face = "bold")
+      ) +
+      coord_cartesian(xlim = c(-x_lim_max, x_lim_max), ylim = c(-y_lim_max, y_lim_max))
+
+    # Store the plot in the list
+    plots_list[[cell_type]] <- FC_plot
+}
+
+# Save plots to PDF with 4 per page
+
+
+# Save to PDF with 4 plots per page
+pdf_file <- paste0(fig_path_stnx, "10_logFC_RNA_vs_ATAC_scatter_plots_v2.pdf")
+pdf(pdf_file, width = 20, height = 20)
+gridExtra::marrangeGrob(grobs = plots_list, ncol = 2, nrow = 2)
+dev.off()
+
+
+
+
+
+
+```
+
+
+##grid_volcano_final 
+
+```{r}
+
+# Define the function to create volcano plots
+create_volcano_plots <- function(results_tbls = results_tbls, gene_to_highlight = Chr7_genes, padj = "padj", log2FoldChange = "log2FoldChange", title_txt = "Res.0.5") {
+  # Initialize the list to store volcano plots
+  volcano_list <- list()
+  
+  # Iterate over the groups in the results list
+  for (group in names(results_tbls)) {
+    # Extract the results for the current group and convert to a tibble
+    res_tbl <- results_tbls[[group]]
+    
+    # Mark genes located on Chr7
+    res_tbl$gene_to_highlight <- res_tbl$gene_name %in% gene_to_highlight
+    
+    # Label genes with padj < 0.05
+    res_tbl$label <- ifelse(res_tbl[[padj]] < 0.05, res_tbl$gene_name, NA)
+    
+    # Filter out rows with NA in log2FoldChange or padj
+    res_tbl <- res_tbl %>%
+      filter(!is.na(.data[[log2FoldChange]]) & !is.na(.data[[padj]]))
+    
+    # Modify the log2FoldChange and padj columns
+    res_tbl[[log2FoldChange]] <- -as.numeric(res_tbl[[log2FoldChange]])
+    res_tbl[[padj]] <- as.numeric(res_tbl[[padj]])
+    
+    # Create a column to indicate significant genes (padj < 0.05)
+    res_tbl$significant <- res_tbl[[padj]] < 0.05
+    
+    # Generate volcano plot
+    p <- ggplot(res_tbl, aes(x = .data[[log2FoldChange]], y = -log10(pmax(.data[[padj]], 1e-300)), color = gene_to_highlight)) +
+      geom_vline(xintercept = 0, color = "black", linetype = "dashed", size = 0.2) +
+      geom_hline(yintercept = -log10(0.05), linetype = "dashed", color = "black", size = 0.2) +
+      annotate(
+        "text",
+        x = max(res_tbl[[log2FoldChange]]) * 0.5,
+        y = -log10(0.05) + 0.1,
+        label = "padj = 0.05",
+        hjust = 0,
+        size = 2.5,
+        color = "black",
+        fontface = "italic"
+      ) +
+      # Non-significant points (smaller size)
+      geom_point(data = subset(res_tbl, !significant), alpha = 0.3, size = 0.1, shape = 16) +
+      # Significant points (larger size)
+      geom_point(data = subset(res_tbl, significant), alpha = 0.8, size = 0.6, shape = 16) +
+      scale_color_manual(
+        values = c("#3194CC", "#94221F"),
+        labels = c("Non-Chr7", "Chr7"),
+        name = "Chr7 Status",
+        guide = guide_legend(override.aes = list(size = 3))
+      ) +
+      geom_text_repel(
+        aes(label = label),
+        nudge_x = 0.2,
+        size = 1.5,
+        min.segment.length = 0.1,
+        max.overlaps = Inf,
+        box.padding = 0.2,
+        segment.size = 0.1,
+        show.legend = FALSE
+      ) +
+      scale_x_continuous(
+        trans = scales::trans_new(
+          name = "custom-scale",
+          transform = function(x) sign(x) * log1p(abs(x)),
+          inverse = function(x) sign(x) * (exp(abs(x)) - 1)
+        ),
+        limits = range(res_tbl[[log2FoldChange]]),
+        breaks = c(-5, -1, -0.5, 0, 0.5, 1, 5),
+        labels = c("-5", "-1", "-0.5", "0", "0.5", "1", "5")
+      ) +
+      scale_y_continuous(
+        trans = "log1p",
+        limits = range(-log10(pmax(res_tbl[[padj]], 1e-300))),
+        breaks = c(0, 2, 5, 10, 20),
+        labels = scales::label_number(accuracy = 0.1)
+      ) +
+      labs(
+        title = paste0("Volcano Plot for ", title_txt, " : ", group),
+        x = "Log2 Fold Change",
+        y = "-log10(P-value)"
+      ) +
+      theme_minimal() +
+      theme(
+        axis.text = element_text(size = 10),
+        axis.title = element_text(size = 14, face = "bold"),
+        plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+        legend.position = "right",
+        panel.grid = element_blank(),
+        panel.border = element_rect(color = "black", fill = NA, size = 1)
+      )
+    
+    # Store the plot in the volcano_list
+    volcano_list[[group]] <- p
+  }
+  
+  # Return the list of volcano plots
+  return(volcano_list)
+}
+
+Volcano_plots_DEGs_cell_type <- create_volcano_plots(results_tbls=DPG_DEG_final_list, gene_to_highlight= Chr7_genes, padj="RNAminPadj", log2FoldChange="RNA.maxlogFC", title_txt= "DEGs in Res.0.5")
+
+# # # Save all plots combined into a single PDF page
+pdf(paste0(fig_path_stnx, "10_volcano_plots_DeSeq2_results_cell_type_wsnn_atac_h4_rna_h4_d2_45_1_45_k100_res.0.5_DEGs_per_cell_type_labeled_all_de_genes.pdf"), width = 27, height = 15)
+plot_grid(plotlist = Volcano_plots_DEGs_cell_type, ncol = 4)
+dev.off()
+Volcano_plots_DPGs_cell_type <- create_volcano_plots(results_tbls=DPG_DEG_final_list, gene_to_highlight= Chr7_genes, padj="ATAC.minminPadj", log2FoldChange="ATAC.maxmaxlogFC", title_txt= "DPGs in Res.0.5")
+pdf(paste0(fig_path_stnx, "10_volcano_plots_DeSeq2_results_cell_type_wsnn_atac_h4_rna_h4_d2_45_1_45_k100_res.0.5_DPGs_per_cell_type_labeled_all_de_genes.pdf"), width = 27, height = 15)
+plot_grid(plotlist = Volcano_plots_DPGs_cell_type, ncol = 4)
+dev.off()
+
+```
+
+#coverage_plots
+##GENES DAR & DEG
+```{r}
+DPG_DEG_final_list <- readRDS(paste0(rds_path_vst, "05_002_02_join_DEG_DAP_list_DeSeq2_cell_type_50_cells_300_3_1000_MONOSOMY_CUTOFF_peaks_converted_to_genes_body_160bp_only_significants.rds"))
+
+Proge_DEAR <- DPG_DEG_final_list$Progenitor_like
+
+Proge_DEAR <- Proge_DEAR[Proge_DEAR$ATAC_RNA_significant == "TRUE" & !is.na(Proge_DEAR$ATAC_RNA_significant), ]
+sig_prg <- Proge_DEAR$gene_name
+
+BCL2_signature <- c("BCL2", "MCL1", "BCL2L1", "BCL2A1", "BCL2L2", "BAX", "BAK1", "BOK", 
+           "BCL2L11", "BBC3", "PMAIP1", "BAD", "BMF", "HRK", "BIK", "BID", "BNIP3")
+
+sig_prg <- c(sig_prg,"BNIP3" )
+
+```
+###GeneToPeak function
+```{r,}
+GeneToPeak <- function(gene_list, sobj, promoter_extension = 160) {
+
+  
+  # Obtain gene coordinates
+  ensembl <- useMart("ensembl", dataset = "hsapiens_gene_ensembl")
+  gene_coords <- getBM(attributes = c('hgnc_symbol', 'chromosome_name', 'start_position', 'end_position', 'strand'), 
+                       filters = 'hgnc_symbol', values = gene_list, mart = ensembl)
+  
+  # Create GRanges object for genes
+  gr_genes_to_convert <- GRanges(gene_coords$chromosome_name, 
+                                 IRanges(gene_coords$start_position, gene_coords$end_position),
+                                 strand = ifelse(gene_coords$strand == 1, "+", "-"))
+  
+  # Adjust chromosome names to UCSC style
+  seqlevelsStyle(gr_genes_to_convert) <- "UCSC"
+  
+  # Load ATAC-seq peak data
+  all_peaks <- rownames(sobj@assays$ATAC)
+  atac_peaks <- StringToGRanges(all_peaks, sep = c("-", "-"))
+  
+  # Function to extend ranges based on strand
+  extend_ranges <- function(ranges, strand) {
+    new_start <- ifelse(strand == "+", 
+                        start(ranges) - promoter_extension, 
+                        start(ranges))
+    new_end <- ifelse(strand == "-", 
+                      end(ranges) + promoter_extension, 
+                      end(ranges))
+    
+    new_start <- pmax(new_start, 1)  # Ensure start is not less than 1
+    
+    IRanges(new_start, new_end)
+  }
+  
+  # Extend ranges for each gene
+  extended_ranges_list <- vector("list", length(gr_genes_to_convert))
+  for (i in seq_along(gr_genes_to_convert)) {
+    extended_ranges_list[[i]] <- extend_ranges(ranges(gr_genes_to_convert)[i],
+                                               strand(gr_genes_to_convert)[i])
+  }
+  
+  # Combine extended ranges
+  combined_extended_ranges <- do.call("c", extended_ranges_list)
+  gr_genes_to_convert <- GRanges(seqnames = seqnames(gr_genes_to_convert),
+                                 ranges = combined_extended_ranges,
+                                 strand = strand(gr_genes_to_convert))
+  
+  # Find overlapping peaks
+  overlaps <- findOverlaps(atac_peaks, gr_genes_to_convert)
+  
+  # Extract peaks and corresponding genes
+  overlapping_atac_peaks <- atac_peaks[queryHits(overlaps),]
+  overlapping_genes <- gene_coords$hgnc_symbol[subjectHits(overlaps)]
+  
+  # Create a dictionary of peak to gene mapping
+  chr <- as.character(seqnames(overlapping_atac_peaks))
+  start <- start(overlapping_atac_peaks)
+  end <- end(overlapping_atac_peaks)
+  
+  # Create the string representation for peaks
+  atac_peaks_strings <- paste(chr, start, end, sep = "-")
+  
+  # Create a named list (dictionary) with peak as key and gene as value
+  peak_gene_dict <- setNames(as.list(overlapping_genes), atac_peaks_strings)
+  
+  return(peak_gene_dict)
+}
+```
+##covarge BCL2 family
+```{r,}
+
+AML_progenitors <- subset(
+x = merg_obj,
+subset = cell_type_final =="Progenitor_like")
+merg_obj$health_condition
+AML_progenitors <- subset(
+x = AML_progenitors,
+  subset = Monosomy_cutoff =="above_3.7" & health_condition== "healthy_donors" |Monosomy_cutoff =="above_3.7" & health_condition== "AML_non_monosomy" |
+Monosomy_cutoff =="Under_3" & health_condition== "AML_monosomy" )
+AML_progenitors$nCount_ATAC <- AML_progenitors$nCount_ATAC_raw
+AML_progenitors_v0 <- AML_progenitors
+
+
+# overlapping_peaks <- GeneToPeak(gene_list= BCL2_signature , sobj = merg_obj, promoter_extension = 160) 
+# length(overlapping_peaks) #155
+overlapping_peaks <- GeneToPeak(gene_list= sig_prg , sobj = merg_obj, promoter_extension = 160) 
+length(overlapping_peaks) #354
+##################
+##################
+##################
+
+AML_progenitors$nCount_ATAC <- AML_progenitors$nCount_ATAC_raw
+df <- AML_progenitors@meta.data %>%
+    transmute(
+      health_condition = health_condition,
+      donor_id = donor_id,
+      color_donor = color_donor,
+      color_health =color_health
+    )
+#######################
+####################### split by donor
+#######################
+
+donor_mapping <- df %>%
+    distinct(donor_id, color_donor) %>%
+    arrange(donor_id)  # Ensures consistent order
+color_mapping <- setNames(levels(df$color_donor), levels(df$donor_id))
+# Ensure that the factor levels of 'donor_id' are ordered based on the mapping
+AML_progenitors@meta.data$donor_id <- factor(AML_progenitors@meta.data$donor_id,
+                                             levels = donor_mapping$donor_id)
+
+# Assign the 'color_donor' to the appropriate levels in the Seurat object
+AML_progenitors@meta.data$color_donor <- factor(AML_progenitors@meta.data$color_donor,
+                                                levels = donor_mapping$color_donor)
+# Define the color palette manually (ensure colors match the unique cell types)
+Idents(AML_progenitors) <- AML_progenitors$donor_id
+
+
+#######################
+####################### split by condition
+#######################
+# health_mapping <- df %>%
+#     distinct(health_condition, color_health) %>%
+#     arrange(health_condition)  # Ensures consistent order
+# 
+# # Ensure that the factor levels of 'health_condition' are ordered based on the mapping
+# AML_progenitors@meta.data$health_condition <- factor(AML_progenitors@meta.data$health_condition,
+#                                              levels = health_mapping$health_condition)
+# levels(AML_progenitors@meta.data$health_condition)
+# levels(health_mapping$health_condition)
+# # Assign the 'color_health' to the appropriate levels in the Seurat object
+# AML_progenitors@meta.data$color_health <- factor(AML_progenitors@meta.data$color_health,
+#                                                 levels = health_mapping$color_health)
+# color_mapping <- setNames(levels(df$color_health), levels(df$health_condition))
+# 
+# levels(AML_progenitors@meta.data$color_health)
+# 
+# Idents(AML_progenitors) <- AML_progenitors$health_condition
+
+#######################
+####################### plotting
+#######################
+
+
+# Define PDF file path first
+# pdf_file <- paste0(fig_path_stnx, "10_covarge_plots_BCL2_signature.pdf")
+# pdf_file <- paste0(fig_path_stnx, "10_covarge_plots_BCL2_signature_split_by_health.pdf")
+# pdf_file <- paste0(fig_path_stnx, "10_covarge_plots_DAR_DAP_signature_split_by_health+160.pdf")
+pdf_file <- paste0(fig_path_stnx, "10_covarge_plots_DAR_DAP_signature_split_by_donor+20K.pdf")
+plot_list <- list()
+
+# Generate plots for each overlapping peak
+for (num in seq_along(overlapping_peaks)) {
+  gene_name <- unname(overlapping_peaks)[[num]]
+  peak_name <- names(overlapping_peaks)[num]
+  plotname <- paste0(gene_name, "_", peak_name)
+  plot <- CoveragePlot(AML_progenitors, 
+                       region = peak_name, 
+                       extend.upstream = 20000,
+                       extend.downstream = 20000,
+                       features = gene_name,  # Ensure this is needed
+                       assay = 'ATAC', 
+                       expression.assay = 'SCT',
+                       annotation = TRUE,
+                       peaks = TRUE,
+                       tile = FALSE)+ggtitle(plotname)
+  plot <- plot & scale_fill_manual(values = color_mapping) 
+  plot <- plot & ggtitle(paste0(plotname, " +_20K") )
+  plot
+  plot_list[[plotname]] <- plot  # Use double brackets to store by name
+}
+
+# Save plots to PDF
+
+
+pdf(pdf_file, width = 20, height = 40)
+for (plot in plot_list) {
+  # grid.newpage()
+  print(plot)  
+}
+dev.off()
+
+
+
+```
+
+##Inflamation Genes 
+https://pmc.ncbi.nlm.nih.gov/articles/PMC9986885/#S36
+"We next reduced the inflammation gene
+sets of both pediatric and adult patients to generate clinically applicable gene signatures,
+using sparse regression analysis on the inflammation gene signatures in bulk RNA-seq
+cohorts for adult (Alliance) and pediatric (TARGET-AML) patients. This resulted in 38
+and 11 core inflammation genes representing the survival risk associated with inflammation
+genes (iScore) for adult and pediatric patients, respectively (Supplementary Table 11), with
+continuous distribution across both cohorts as well as across all risk stratifications (Extended
+Data Fig. 9c,d)."
+##BCL2 family
+
+```{r,}
+iScore_genes <- c(
+  "ALOX5", "AP2S1", "ATP2B1", "ATP8B4", "CAPZB", "CD38", "CD79A", "CST3", 
+  "CTSG", "CXCL2", "CYBA", "FCN1", "FGR", "FYB1", "FYN", "GSTP1", "HOMER3", 
+  "IRAK3", "KMT2E", "MEF2C", "MPO", "PSMA6", "PSME1", "RGCC", "SAMHD1", 
+  "SLC11A1", "SLC2A3", "TFPI", "TMEM176B", "TNFRSF1B", "TYROBP", "VSIR", 
+  "CHMP4B", "CCL7", "EIF2AK2", "HMOX1", "PABPC1", "RETN"
+)
+
+BCL2_signature <- c("BCL2", "MCL1", "BCL2L1", "BCL2A1", "BCL2L2", "BAX", "BAK1", "BOK", 
+           "BCL2L11", "BBC3", "PMAIP1", "BAD", "BMF", "HRK", "BIK", "BID")
+
+
+
+all_genes_name <- rownames(merg_obj@assays$RNA)
+length(all_genes_name) #36601
+
+
+length(intersect(all_genes_name,iScore_genes)) #38
+
+###############################
+###############################
+###############################
+###############################
+ensembl <- useMart("ensembl", dataset = "hsapiens_gene_ensembl" )
+gene_coords <- getBM(attributes = c('hgnc_symbol', 'chromosome_name', 'start_position', 'end_position'), 
+                     filters = 'hgnc_symbol', values = iScore_genes, mart = ensembl)
+dim(gene_coords) #40    4
+gr_iScore_genes <- GRanges(gene_coords$chromosome_name, IRanges(gene_coords$start_position, gene_coords$end_position))
+
+seqlevelsStyle(gr_iScore_genes) <- "UCSC"
+
+
+# Load ATAC-seq peak data (assuming BED format)
+all_peaks <- rownames(merg_obj@assays$ATAC)
+length(all_peaks) #184466
+atac_peaks <- StringToGRanges(all_peaks, sep = c("-", "-"))
+length(atac_peaks) #184466
+
+promoter_extension <- 0
+
+# Create a function to extend ranges based on strand
+extend_ranges <- function(ranges, strand) {
+  new_start <- ifelse(strand == "+", 
+                      start(ranges) - promoter_extension, 
+                      start(ranges))
+  new_end <- ifelse(strand == "-", 
+                    end(ranges) + promoter_extension, 
+                    end(ranges))
+
+  # Ensure start is not less than 1
+  new_start <- pmax(new_start, 1)
+
+  # Return the new IRanges
+  IRanges(new_start, new_end)
+}
+
+# Initialize a list to store extended ranges
+extended_ranges_list <- vector("list", length(gr_iScore_genes))
+
+# Loop over the indices of gr_iScore_genes and extend ranges
+for (i in seq_along(gr_iScore_genes)) {
+  extended_ranges_list[[i]] <- extend_ranges(ranges(gr_iScore_genes)[i],
+                                             strand(gr_iScore_genes)[i])
+}
+
+# Combine the extended ranges into a single IRanges object
+combined_extended_ranges <- do.call("c", extended_ranges_list)
+length(combined_extended_ranges) #40
+
+# Update the GRanges object with extended ranges
+gr_iScore_genes <- GRanges(seqnames = seqnames(gr_iScore_genes),
+                              ranges = combined_extended_ranges,
+                              strand = strand(gr_iScore_genes))
+
+# Find overlapping peaks
+overlaps <- findOverlaps(atac_peaks, gr_iScore_genes) 
+length(overlaps) #449
+# Remove overlapping peaks
+atac_peaks_iScore_genes<- atac_peaks[queryHits(overlaps),]
+
+length(atac_peaks_iScore_genes) #449
+
+# Proceed with analysis using filtered_atac_peaks
+
+
+
+# Assuming 'filtered_atac_peaks' is your GRanges object
+chr <- as.character(seqnames(atac_peaks_iScore_genes))
+unique(chr)
+start <- start(atac_peaks_iScore_genes)
+end <- end(atac_peaks_iScore_genes)
+
+# Create the string representation
+iScore_peaks <- paste(chr, start, end, sep = "-")
+
+# To view the first few entries
+length(intersect(iScore_peaks,all_peaks)) #449
+
+```
+
+
+#dotplot (Gene set requested by Rachel)
+```{r, fig.height=10}
+merg_obj<-  readRDS(paste0(rds_path_vst, "10_merged_object_chromvar_sct_normalised_motif_11AML_9healthy_2AMS_final_cell_type_umaps_TFIFDF_corrected_fragments_erythro_130875cells.rds"))
+gene_list <- c("EIF2AK1", "STK17A" , "ZNF316", "NT5C3A", "CASP2", "CACNA1C")
+
+merg_obj_v0 <- merg_obj
+Idents(merg_obj) <- merg_obj$health_condition
+AML_progenitors_1 <- subset(
+x = merg_obj,
+subset = cell_type_final =="Progenitor(MPP)")
+AML_progenitors <- subset(
+x = AML_progenitors_1,
+  subset = Monosomy_cutoff =="above_3.7" & health_condition== "healthy_donors" |Monosomy_cutoff =="above_3.7" & health_condition== "AML_non_monosomy" |
+Monosomy_cutoff =="Under_3" & health_condition== "AML_monosomy" )
+AML_progenitors$nCount_ATAC <- AML_progenitors$nCount_ATAC_raw
+pdf_file <- paste0(fig_path_stnx, "10_dot_plot_requested_genes.pdf")
+pdf(pdf_file, width = 8, height = 8)
+
+
+DotPlot(merg_obj, assay= "RNA", features = gene_list, dot.scale = 10, group.by = "health_condition", scale = TRUE,  cluster.idents= FALSE,cols= c("#3194CC", "#94221F")) +
+             RotatedAxis() +
+    ggtitle("all 130875 cells") +labs(x = "health_condition", y = "genes")+  coord_flip()
+  
+DotPlot(AML_progenitors, assay= "RNA", features = gene_list, dot.scale = 10, group.by = "health_condition", scale = TRUE,  cluster.idents= FALSE,cols= c("#3194CC", "#94221F")) +
+             RotatedAxis() +
+    ggtitle("Only Progenitor(MPP), 25816 cells, \n filtered by monosomy cutoff") +  # Add title with both object and marker set names
+            labs(x = "health_condition", y = "genes")+  coord_flip()
+DotPlot(AML_progenitors_1, assay= "RNA", features = gene_list, dot.scale = 10, group.by = "health_condition", scale = TRUE,  cluster.idents= FALSE,cols= c("#3194CC", "#94221F")) +
+             RotatedAxis() +
+    ggtitle("Only Progenitor(MPP), \n 26284 cells not filtered") +  # Add title with both object and marker set names
+            labs(x = "health_condition", y = "genes")+  coord_flip()
+DotPlot(AML_progenitors, assay= "RNA", features = gene_list, dot.scale = 10, group.by = "health_condition", scale = TRUE,  cluster.idents= FALSE,cols= c("#3194CC", "#94221F")) +
+             RotatedAxis() +
+    ggtitle("Only Progenitor(MPP), 25816 cells, \n filtered by monosomy cutoff, flip") +  # Add title with both object and marker set names
+            labs(x = "genes", y = "health_condition")
+
+
+dittoDotPlot(merg_obj, assay= "RNA", vars = gene_list,  group.by = "cell_type_final", scale = TRUE ,  split.by= "health_condition", min.color = "#3194CC", max.color= "#94221F") +
+             RotatedAxis() 
+
+
+dev.off()
+
+###++++++++++++++++++++++++++++++++++++++++++++. per sample
+merg_obj<-  readRDS(paste0(rds_path_vst, "10_merged_object_chromvar_sct_normalised_motif_11AML_9healthy_2AMS_final_cell_type_umaps_TFIFDF_corrected_fragments_erythro_130875cells.rds"))
+gene_list <- c("EIF2AK1", "STK17A" , "ZNF316", "NT5C3A", "CASP2", "CACNA1C")
+
+merg_obj_v0 <- merg_obj
+Idents(merg_obj) <- merg_obj$donor_id
+AML_progenitors_1 <- subset(
+x = merg_obj,
+subset = cell_type_final =="Progenitor(MPP)")
+AML_progenitors <- subset(
+x = AML_progenitors_1,
+  subset = Monosomy_cutoff =="above_3.7" & health_condition== "healthy_donors" |Monosomy_cutoff =="above_3.7" & health_condition== "AML_non_monosomy" |
+Monosomy_cutoff =="Under_3" & health_condition== "AML_monosomy" )
+AML_progenitors$nCount_ATAC <- AML_progenitors$nCount_ATAC_raw
+pdf_file <- paste0(fig_path_stnx, "10_dot_plot_requested_genes_per_donor.pdf")
+pdf(pdf_file, width = 8, height = 8)
+
+
+
+  
+DotPlot(AML_progenitors, assay= "RNA", features = gene_list, dot.scale = 10, group.by = "donor_id", scale = TRUE,  cluster.idents= FALSE,cols= c("#3194CC", "#94221F")) +
+             RotatedAxis() +
+    ggtitle("Only Progenitor(MPP), 25816 cells, \n filtered by monosomy cutoff") +  # Add title with both object and marker set names
+            labs(x = "health_condition", y = "genes")+  coord_flip()
+
+DotPlot(AML_progenitors, assay= "RNA", features = gene_list, dot.scale = 10, group.by = "donor_id", scale = TRUE,  cluster.idents= FALSE,cols= c("#3194CC", "#94221F")) +
+             RotatedAxis() +
+    ggtitle("Only Progenitor(MPP), 25816 cells, \n filtered by monosomy cutoff, flip") +  # Add title with both object and marker set names
+            labs(x = "genes", y = "health_condition")
+
+
+dev.off()
+
+#====================================================Coverageplot
+
+
+
+
+overlapping_peaks <- GeneToPeak(gene_list= gene_list , sobj = merg_obj, promoter_extension = 160) 
+color_mapping <- setNames(levels(AML_progenitors$color_health), unique(AML_progenitors$health_condition))
+# 
+
+
+pdf_file <- paste0(fig_path_stnx, "10_covarge_plots_DAR_DAP_requested_by_rachel+_10k_prog_filterbyCutoff_25816cells.pdf")
+plot_list <- list()
+
+# Generate plots for each overlapping peak
+for (DAR in names(overlapping_peaks)) {
+  gene_name <- overlapping_peaks[[DAR]]
+  plotname <- paste0(gene_name, "_", DAR, "\n Only Progenitor(MPP), 25816 cells, \n filtered by monosomy cutoff")
+  plot <- CoveragePlot(AML_progenitors,
+                       region = DAR,
+                       extend.upstream = 10000,
+                       extend.downstream = 10000,
+                       features = gene_name,  # Ensure this is needed
+                       assay = 'ATAC',
+                       expression.assay = 'SCT',
+                       annotation = TRUE,
+                       peaks = TRUE,
+                       tile = FALSE)+ggtitle(plotname)
+  plot <- plot & scale_fill_manual(values = color_mapping)
+  plot <- plot & ggtitle(paste0(plotname, " +_10K") )
+
+  plot_list[[plotname]] <- plot  # Use double brackets to store by name
+}
+
+# Save plots to PDF
+library(grid)
+pdf(pdf_file, width = 11, height = 9)
+for (plot in plot_list) {
+  # grid.newpage()
+  print(plot)
+}
+dev.off()
+#==========================specifc regions ==========================
+
+pdf_file <- paste0(fig_path_stnx, "10_covarge_plots_DAR_DAP_requested_by_rachel_customize_prog_filterbyCutoff_25816cells.pdf")
+plot_list <- list()
+
+DAR <- "chr12-2009409-2010218"
+gene_name <- overlapping_peaks[[DAR]]
+plotname <- paste0(gene_name, "_", DAR)
+plot <- CoveragePlot(AML_progenitors, 
+                       region = DAR, 
+                       extend.upstream = 50000,
+                       extend.downstream = 700000,
+                       features = gene_name,  # Ensure this is needed
+                       assay = 'ATAC', 
+                       expression.assay = 'SCT',
+                       annotation = TRUE,
+                       peaks = TRUE,
+                       tile = FALSE)+ggtitle(plottitle)
+  plot <- plot & scale_fill_manual(values = health_colors) 
+  plot <- plot & ggtitle(paste0(plotname, " +50K-700k") )
+plot_list[[plotname]] <- plot  # Use double brackets to store by name
+
+
+DAR <- "chr7-6055392-6055989"
+gene_name <- overlapping_peaks[[DAR]]
+plotname <- paste0(gene_name, "_", DAR)
+plot <- CoveragePlot(AML_progenitors, 
+                       region = DAR, 
+                       extend.upstream = 50000,
+                       extend.downstream = 30000,
+                       features = gene_name,  # Ensure this is needed
+                       assay = 'ATAC', 
+                       expression.assay = 'SCT',
+                       annotation = TRUE,
+                       peaks = TRUE,
+                       tile = FALSE)
+  plot <- plot & scale_fill_manual(values = health_colors) 
+  plot <- plot & ggtitle(paste0(plotname, " +50K-30k") )
+plot_list[[plotname]] <- plot 
+
+
+DAR <- "chr7-6637137-6637832"
+gene_name <- overlapping_peaks[[DAR]]
+plotname <- paste0(gene_name, "_", DAR)
+plot <- CoveragePlot(AML_progenitors, 
+                       region = DAR, 
+                       extend.upstream = 20000,
+                       extend.downstream = 30000,
+                       features = gene_name,  # Ensure this is needed
+                       assay = 'ATAC', 
+                       expression.assay = 'SCT',
+                       annotation = TRUE,
+                       peaks = TRUE,
+                       tile = FALSE)
+  plot <- plot & scale_fill_manual(values = color_mapping) 
+  plot <- plot & ggtitle(paste0(plotname, " +20K-30k") )
+plot_list[[plotname]] <- plot 
+
+
+
+DAR <- "chr7-33040605-33041460"
+gene_name <- overlapping_peaks[[DAR]]
+plotname <- paste0(gene_name, "_", DAR)
+plot <- CoveragePlot(AML_progenitors, 
+                       region = DAR, 
+                       extend.upstream = 30000,
+                       extend.downstream = 30000,
+                       features = gene_name,  # Ensure this is needed
+                       assay = 'ATAC', 
+                       expression.assay = 'SCT',
+                       annotation = TRUE,
+                       peaks = TRUE,
+                       tile = FALSE)
+  plot <- plot & scale_fill_manual(values = color_mapping) 
+  plot <- plot & ggtitle(paste0(plotname, " +_30K") )
+plot_list[[plotname]] <- plot 
+
+
+
+DAR <- "chr7-43615326-43616207"
+gene_name <- overlapping_peaks[[DAR]]
+plotname <- paste0(gene_name, "_", DAR)
+plot <- CoveragePlot(AML_progenitors, 
+                       region = DAR, 
+                       extend.upstream = 50000,
+                       extend.downstream = 20000,
+                       features = gene_name,  # Ensure this is needed
+                       assay = 'ATAC', 
+                       expression.assay = 'SCT',
+                       annotation = TRUE,
+                       peaks = TRUE,
+                       tile = FALSE)
+  plot <- plot & scale_fill_manual(values = color_mapping) 
+  plot <- plot & ggtitle(paste0(plotname, " +50K-20k") )
+plot_list[[plotname]] <- plot 
+
+DAR <- "chr7-143299584-143300418"
+gene_name <- overlapping_peaks[[DAR]]
+plotname <- paste0(gene_name, "_", DAR)
+plot <- CoveragePlot(AML_progenitors, 
+                       region = DAR, 
+                       extend.upstream = 20000,
+                       extend.downstream = 20000,
+                       features = gene_name,  # Ensure this is needed
+                       assay = 'ATAC', 
+                       expression.assay = 'SCT',
+                       annotation = TRUE,
+                       peaks = TRUE,
+                       tile = FALSE)
+  plot <- plot & scale_fill_manual(values = color_mapping) 
+  plot <- plot & ggtitle(paste0(plotname, " +_20K") )
+plot_list[[plotname]] <- plot 
+
+# Save plots to PDF
+library(grid)
+pdf(pdf_file, width = 13, height = 9)
+for (plot in plot_list) {
+  # grid.newpage()
+  print(plot)  
+}
+dev.off()
+```
+
+

@@ -2,6 +2,7 @@
 ![R](https://img.shields.io/badge/R-4.0%2B-green)
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 
+<<<<<<< HEAD
 ## **Title**
 Comparative Analysis of Single-Nucleus and Single-Cell RNA Sequencing in Human Bone Marrow Mononuclear Cells: Methodological Insights and Trade-offs
 
@@ -90,3 +91,25 @@ This repository will be archived on xyz upon publication.
 
 ## 📜 **License**  
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+=======
+# Utilities and Custom Scripts
+
+This repository contains a collection of **personalised scripts and utilities** I developed for my reseach projects as a bioinformatician.  
+Most scripts are tailored for **single-cell RNA-seq (scRNA-seq) analysis**, but some are general-purpose for data visualisation and file conversion.
+
+## Features
+- 🧬 **scRNA-seq analysis**: custom QC, clustering, mutation burden analysis, and integration with Seurat/Scanpy  
+- 📊 **Visualisation**: helper scripts for UMAP/TSNE plots, violin plots, and publication-ready figures  
+- 🔄 **File conversion**: BAM ↔ VCF, count matrix formatting, metadata restructuring  
+- 🛠️ **General utilities**: data wrangling, parsing, and automation helpers  
+
+## Example Usage
+```bash
+# Clone the repository
+git clone https://github.com/<GhamsariReza>/<customized-scripts>.git
+cd <customized-scripts>
+
+# Example: mutation-expression association
+python scRNAseq/mutation_expression.py --input data/matrix.mtx --meta metadata.csv --output results.csv
+
+>>>>>>> 811cb3a06e6c48bbbd75c744afd55fba2d1167b0
