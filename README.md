@@ -2,8 +2,6 @@
 ![R](https://img.shields.io/badge/R-4.0%2B-green)
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 
-# Customised Scripts for scRNA-seq and Data Analysis
-
 # Utilities and Custom Scripts
 
 This repository contains a collection of **personalised scripts and utilities** I developed for my reseach projects as a bioinformatician.  
