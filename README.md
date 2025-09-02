@@ -86,8 +86,6 @@ snRNA_vs_scRNA_comparison-main/
 ## 📌 DOI
 This repository will be archived on xyz upon publication.
 
-## 🎉 **Acknowledgements**  
-- Thanks to [10x Genomics](https://www.10xgenomics.com/) for providing the Multiome platform.
 
 ## 📜 **License**  
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
