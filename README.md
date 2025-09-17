@@ -86,7 +86,7 @@ snRNA_vs_scRNA_comparison-main/
 - [Scripts](Scripts/)
   - [Figure_Table_Outputs](Scripts/Figure_Table_Outputs)
   - [Sessions_Info](Scripts/Sessions_Info)
-- README.md
+
 
 ## **Citation**  
 Please cite our paper:
