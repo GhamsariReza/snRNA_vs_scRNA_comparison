@@ -1,1 +1,4 @@
 *.Rmd linguist-language=R
+*.html linguist-vendored
+*.js linguist-vendored
+
