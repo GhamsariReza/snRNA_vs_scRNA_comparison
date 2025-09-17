@@ -1,0 +1,29 @@
+
+Call:
+lm(formula = doublet_percentage ~ total_cell * Platform, data = reshaped_df)
+
+Residuals:
+    Min      1Q  Median      3Q     Max 
+-4.3234 -1.5301  0.3006  1.3332  3.4166 
+
+Coefficients:
+                        Estimate Std. Error t value Pr(>|t|)   
+(Intercept)            4.1709369  1.8863875   2.211  0.04021 * 
+total_cell             0.0005565  0.0001641   3.392  0.00325 **
+PlatformSn             4.5570952  2.4808182   1.837  0.08279 . 
+total_cell:PlatformSn -0.0002486  0.0002388  -1.041  0.31173   
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Residual standard error: 2.193 on 18 degrees of freedom
+Multiple R-squared:  0.4741,	Adjusted R-squared:  0.3865 
+F-statistic: 5.409 on 3 and 18 DF,  p-value: 0.007862
+
+# Interpretation:
+# Total number of cells (total_cell) is a significant predictor of doublet_percentage, meaning that as the total number of cells increases, the percentage of doublets also tends to increase. This effect is consistent across both platforms.
+# Platform (Sc vs Sn) also has an effect on doublet_percentage, with the Sn platform showing a slightly higher percentage of doublets compared to the Sc platform. However, this difference is marginally significant (p-value = 0.08279), so you may want to be cautious about drawing strong conclusions without further data.
+# The interaction term between total_cell and PlatformSn is not significant, indicating that the effect of total_cell on doublet_percentage does not vary significantly between the Sc and Sn platforms. This suggests that the effect of total_cell on doublet_percentage is similar across both platforms.
+# Conclusion:
+# Platform: The Sn platform has a slightly higher doublet percentage than the Sc platform, but the difference is weakly significant.
+# Total cell count: The total number of cells is a statistically significant predictor of doublet_percentage.
+# Interaction: There is no significant interaction between total_cell and Platform, meaning the effect of total_cell on doublet percentage is similar across both platforms.

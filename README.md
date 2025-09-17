@@ -6,45 +6,56 @@
 ## **Title**
 Comparative Analysis of Single-Nucleus and Single-Cell RNA Sequencing in Human Bone Marrow Mononuclear Cells: Methodological Insights and Trade-offs
 
-![Dataset](study_design.png)
-## 🔬 **Overview**  
-Bone marrow mononuclear cells (BMMCs) are a diverse population of hematopoietic progenitors and mature immune cells that sustain hematopoiesis and coordinate immune responses. The bone marrow is not only the primary site of blood cell production but also a key niche for various disorders, including blood cancers. Recent advances in scRNA-seq and snRNA-seq have significantly improved our understanding of cellular composition and molecular dynamics within this complex microenvironment.
+## Table of Contents
+- [**Title**](#title)
+- [Table of Contents](#table-of-contents)
+- [**Overview**](#overview)
+- [**Key Findings**](#key-findings)
+- [📂 **Dataset**](#-dataset)
+- [**Analysis Workflow**](#analysis-workflow)
+- [📂 **Data Availability**](#-data-availability)
+- [🌟 **Conclusion**](#-conclusion)
+- [🗂️ **Repository Structure**](#️-repository-structure)
+- [**Citation**](#citation)
+- [📜 **License**](#-license)
 
+## **Overview**  
+Bone marrow mononuclear cells (BMMCs) are a diverse population of hematopoietic progenitors and mature immune cells that sustain hematopoiesis and coordinate immune responses. The bone marrow is not only the primary site of blood cell production but also a key niche for various disorders, including blood cancers.
+Recent advances in scRNA-seq and snRNA-seq have significantly improved our understanding of cellular composition and molecular dynamics within this complex microenvironment.
 However, the choice between these two approaches is influenced by study design, sample type, and preservation conditions. Differences in library preparation and transcript capture efficiency can introduce systematic biases, making it important to account for method-specific features during analysis.
-
-Study Focus
-
 In this work, we performed a comparative analysis of matched scRNA-seq and snRNA-seq datasets from 11 healthy donor BMMC samples, all generated using the 10x Genomics platform. We evaluated:
 
-Method-specific biases across multiple quality metrics
+- Method-specific biases across multiple quality metrics
 
-Differences in cell type proportions and transcriptomic signatures
+- Differences in cell type proportions and transcriptomic signatures
 
-The feasibility and limitations of integrative analysis
+- The feasibility and limitations of integrative analysis
 
-Key Findings
+![Dataset](Study_Design.png)
 
-Both scRNA-seq and snRNA-seq reliably captured all major BMMC cell types, despite differences in library complexity.
+## **Key Findings**
 
-Systematic gene length biases exist between the two methods, which can complicate direct integration of datasets.
+- Both scRNA-seq and snRNA-seq reliably captured all major BMMC cell types, despite differences in library complexity.
 
-Understanding method-specific advantages and limitations is crucial for selecting the optimal approach for specific biological questions.
+- Systematic gene length biases exist between the two methods, which can complicate direct integration of datasets.
 
-Impact
+- Understanding method-specific advantages and limitations is crucial for selecting the optimal approach for specific biological questions.
 
-This study provides a resource for researchers aiming to:
+- **Significance**
 
-Choose the appropriate single-cell sequencing method based on sample type and research objectives
+- This study provides a resource for researchers aiming to:
 
-Perform method-aware analyses and interpretation of scRNA-seq and snRNA-seq data
+- Choose the appropriate single-cell sequencing method based on sample type and research objectives
 
-## **Citation**  
-Please cite [our paper](XXXX) if you use our data and/or scripts in your studies.
+- Perform method-aware analyses and interpretation of scRNA-seq and snRNA-seq data
 
 ## 📂 **Dataset**  
 For this study, we re-used a publicly available dataset of bone marrow mononuclear cells (BMMCs), originally generated for a multi-modal single-cell benchmarking study. In this dataset, biological samples from multiple healthy donors (aged 22–40) were processed across four different laboratories, where each sample was split into two parts, with one part subjected to transcriptomic profiling using 10x Multiome and the other using 10x CITE-seq. 
 For the both scRNA and snRNA, 3' gene expression libraries were sequenced on an Illumina NextSeq 2000 platform using paired-end reads with the following parameters: Read 1 (28 cycles), Index 1 (10 cycles), Index 2 (10 cycles), and Read 2 (90 cycles). 
 The targeted sequencing depth was approximately 20,000 reads per cell or nucleus.
+## **Analysis Workflow**  
+The analysis workflow, including the execution order of R and UNIX scripts for data download, preprocessing, and downstream analysis in this project, is schematically illustrated in the following diagram:
+ ![Dataset](Script_Overview.png)
 
 ## 📂 **Data Availability** 
 Publicly available multiome datasets of healthy donors with GEO accession numbers: [GSE194122](https://www.ncbi.nlm.nih.gov/bioproject/PRJNA799242). For further information, please read and cite [A sandbox for prediction and integration of DNA, RNA, and proteins in single cells](https://datasets-benchmarks-proceedings.neurips.cc/paper/2021/hash/158f3069a435b314a80bdcb024f8e422-Abstract-round2.html).
@@ -56,36 +67,26 @@ data generated by each methodology, helping inform decisions during preprocessin
 Finally, while both methods provide valuable information and have their own advantages and trade‑offs, the choice between them should be guided by a well‑defined study design that considers factors such as sample preservation method (fresh versus frozen), logistical constraints (e.g., timing), and study objectives (e.g., multimodal data). 
 
 ## 🗂️ **Repository Structure**
+
 ```
 snRNA_vs_scRNA_comparison-main/
-├── scripts/                          # Bioinformatics pipelines & analysis scripts
-      └── sessioninfo                        # session information
-├── Figures/                             # Processed data files (metadata, cell annotations)
-├── results/                           # Final figures and tables
-├── SupplementaryData/                 # Supplementary figures and tables
-├── README.md                         # Project overview & instructions
-└──environment.yml                   # Conda environment setup
-└── LICENSE                           # License information
+├── [Manuscript/](Manuscript/)  
+        ├── [Main_Figures/](Manuscript/Main_Figures/)    # Main figures in the Manuscript
+        ├── [Supplementary_Figures/](Manuscript/Supplementary_Figures/)    # Supplementary Figures
+        └── [Scripts/](Manuscript/Scripts/)            # Analysis scripts
+                  ├── [Figure_Table_Outputs/](Manuscript/Scripts/Figure_Table_Outputs)               # Figures and tables generated from scripts
+                  └── [Sessions_Info](Manuscript/Scripts/Sessions_Info)                         # R sessions' information
+└── README.md                         # Project overview & instructions
+
+
 ```
 
-
-#### **Processing raw data**  
-- Bash script to download public data: [00_01_01_Public_Data_Parallel_Download.sh](scripts/00_01_01_Public_Data_Parallel_Download.sh)  
-- Bash script to convert BAM to FASTQ: [00_01_02_Public_Data_cellranger_bam_to_fastq.sh](scripts/00_01_02_Public_Data_cellranger_bam_to_fastq.sh)  
-- Bash script to run Cellranger ARC:  
-  - [--mkfastq (AML data)](scripts/00_02_01_cellranger_arc_mkfastq_25AML_ATAC_GEX.sh)  
-  - [--count (Public data)](scripts/00_01_03_cellranger_arc_count_13_public_data_ATAC_GEX.sh)  
-  - [--count (AML data)](scripts/00_01_03_cellranger_arc_count_13_public_data_ATAC_GEX.sh)  
-  - [--aggr (Merging 38 samples)](scripts/00_02_03_cellranger_arc_aggr_38_AML_Public_ATAC_GEX.sh)
-
-#### **Seurat Pipeline**  
-##### ***Quality Control***
-- Python script to subsample data: [01_01_Sub_sampeling_29_donors.ipynb](scripts/01_01_Sub_sampeling_29_donors.ipynb)  
-- R Markdown script for creating Seurat object and removing background RNA: [01_02_PreProcessing_SoupX_Creating_Multiome_Sobj.Rmd](scripts/01_02_PreProcessing_SoupX_Creating_Multiome_Sobj.Rmd)
-
-## 📌 DOI
-This repository will be archived on xyz upon publication.
-
+## **Citation**  
+Please cite our paper:
+Ghamsari, Reza, et al.  
+*"Comparative Analysis of Single-Nucleus and Single-Cell RNA Sequencing in Human Bone Marrow Mononuclear Cells: Methodological Insights and Trade-offs."*  
+bioRxiv (2025): 2025-09.  
+[https://www.biorxiv.org/content/10.1101/2025.09.08.675012v1](https://www.biorxiv.org/content/10.1101/2025.09.08.675012v1)
 
 ## 📜 **License**  
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
