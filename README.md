@@ -3,12 +3,10 @@
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 
 
-## **Manuscript Title**
-Comparative Analysis of Single-Nucleus and Single-Cell RNA Sequencing in Human Bone Marrow Mononuclear Cells: Methodological Insights and Trade-offs
+## **Comparative Analysis of Single-Nucleus and Single-Cell RNA Sequencing in Human Bone Marrow Mononuclear Cells: Methodological Insights and Trade-offs**
+
 
 ## Table of Contents
-- [**Manuscript Title**](#manuscript-title)
-- [Table of Contents](#table-of-contents)
 - [**Overview**](#overview)
 - [**Key Findings**](#key-findings)
 - [**Significance**](#significance)
